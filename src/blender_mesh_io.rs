@@ -8,6 +8,7 @@ use quick_renderer::mesh;
 mod io_structs {
     use std::collections::HashMap;
 
+    use quick_renderer::{glm, mesh};
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
@@ -56,7 +57,7 @@ mod io_structs {
         edges: IncidentEdges,
         node: Option<NodeIndex>,
 
-        pos: Float2,
+        uv: Float2,
         extra_data: Option<T>,
     }
 
@@ -89,6 +90,80 @@ mod io_structs {
         vert_pos_index_map: HashMap<VertIndex, usize>,
         edge_pos_index_map: HashMap<EdgeIndex, usize>,
         face_pos_index_map: HashMap<FaceIndex, usize>,
+    }
+
+    impl From<Float3> for glm::DVec3 {
+        fn from(float3: Float3) -> Self {
+            glm::vec3(float3.x.into(), float3.y.into(), float3.z.into())
+        }
+    }
+
+    impl From<Float2> for glm::DVec2 {
+        fn from(float2: Float2) -> Self {
+            glm::vec2(float2.x.into(), float2.y.into())
+        }
+    }
+
+    impl<END, EVD, EED, EFD> From<Mesh<END, EVD, EED, EFD>> for mesh::Mesh<END, EVD, EED, EFD> {
+        fn from(mut io_mesh: Mesh<END, EVD, EED, EFD>) -> Self {
+            let mut mesh = Self::new();
+            io_mesh.nodes.iter_mut().for_each(|io_node| {
+                mesh.get_nodes_mut().insert_with(|self_index| {
+                    let mut node = mesh::Node::new(mesh::NodeIndex(self_index), io_node.pos.into());
+                    node.pos = io_node.pos.into();
+                    node.normal = Some(io_node.normal.into());
+                    node.extra_data = io_node.extra_data.take();
+
+                    // TODO(ish): need to set verts
+
+                    node
+                });
+            });
+
+            io_mesh.verts.iter_mut().for_each(|io_vert| {
+                mesh.get_verts_mut().insert_with(|self_index| {
+                    let mut vert = mesh::Vert::new(mesh::VertIndex(self_index));
+
+                    vert.uv = Some(io_vert.uv.into());
+                    vert.extra_data = io_vert.extra_data.take();
+
+                    // TODO(ish): need to set node and edges
+
+                    vert
+                });
+            });
+
+            io_mesh.edges.iter_mut().for_each(|io_edge| {
+                mesh.get_edges_mut().insert_with(|self_index| {
+                    let mut edge = mesh::Edge::new(mesh::EdgeIndex(self_index));
+
+                    edge.extra_data = io_edge.extra_data.take();
+
+                    // TODO(ish): need to set verts and faces
+                    edge
+                });
+            });
+
+            io_mesh.faces.iter_mut().for_each(|io_face| {
+                mesh.get_faces_mut().insert_with(|self_index| {
+                    let mut face = mesh::Face::new(mesh::FaceIndex(self_index));
+
+                    face.normal = Some(io_face.normal.into());
+                    face.extra_data = io_face.extra_data.take();
+
+                    // TODO(ish): need to set verts
+
+                    face
+                });
+            });
+
+            assert_eq!(io_mesh.faces.len(), mesh.get_faces().len());
+            assert_eq!(io_mesh.edges.len(), mesh.get_edges().len());
+            assert_eq!(io_mesh.verts.len(), mesh.get_verts().len());
+            assert_eq!(io_mesh.nodes.len(), mesh.get_nodes().len());
+
+            mesh
+        }
     }
 }
 
