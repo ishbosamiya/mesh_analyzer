@@ -8,6 +8,7 @@ use quick_renderer::glm;
 // axis_conversion() function
 
 lazy_static! {
+    /// The "or"ed values of the from_forward, from_up, to_forward, to_up.
     static ref AXIS_CONVERT_LUT: Vec<Vec<usize>> = {
         vec![
             vec![
@@ -104,6 +105,10 @@ lazy_static! {
             ],
         ]
     };
+
+    /// The conversion matricies
+    ///
+    /// The matrices correspond exactly with the AXIS_CONVERT_LUT positionally.
     static ref AXIS_CONVERT_MATRIX: Vec<glm::DMat3> = {
         vec![
             glm::mat3(-1.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 1.0),
@@ -133,6 +138,7 @@ lazy_static! {
     };
 }
 
+/// 3D axis directions
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Axis {
     X,
@@ -172,6 +178,21 @@ impl From<Axis> for usize {
     }
 }
 
+/// Convert between different axis setups
+///
+/// Forward and Up vectors are enough to determine the entire
+/// coordinate axis system. So given forward and up vectors to convert
+/// from, the function returns a model matrix that can be applied to
+/// the object.
+///
+/// In this case, we are considering Blender's coordinate axis
+/// convention for what is considered positive X, Y, Z
+///
+/// X: screen left to right is positive
+///
+/// Y: into the screen is positive
+///
+/// Z: screen bottom to top is positive
 pub fn axis_conversion_matrix(
     from_forward: Axis,
     from_up: Axis,
