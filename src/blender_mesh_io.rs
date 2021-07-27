@@ -12,6 +12,8 @@ mod io_structs {
     use quick_renderer::{glm, mesh};
     use serde::{Deserialize, Serialize};
 
+    use crate::util;
+
     #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
     pub(super) struct Float3 {
         x: f32,
@@ -259,7 +261,16 @@ mod io_structs {
                     });
                 });
 
-            Self::from_arenas(nodes, verts, edges, faces)
+            let mut mesh = Self::from_arenas(nodes, verts, edges, faces);
+            // since the mesh is from Blender, we need to convert the
+            // mesh coordinates from Blender's to OpenGL
+            mesh.apply_model_matrix(&util::axis_conversion_matrix(
+                util::Axis::Y,
+                util::Axis::Z,
+                util::Axis::NegZ,
+                util::Axis::Y,
+            ));
+            mesh
         }
     }
 }
