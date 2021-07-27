@@ -7,9 +7,10 @@ use quick_renderer::drawable::Drawable;
 use quick_renderer::gpu_immediate::GPUImmediate;
 use quick_renderer::mesh::simple::Mesh;
 use quick_renderer::mesh::MeshDrawData;
-use quick_renderer::meshreader::MeshReader;
 use quick_renderer::shader;
 use quick_renderer::{egui, egui_glfw, gl, glfw, glm};
+
+use mesh_analyzer::prelude::*;
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -52,49 +53,7 @@ fn main() {
         .insert(TextStyle::Small, (FontFamily::Proportional, 15.0));
     egui.get_egui_ctx().set_fonts(fonts);
 
-    let cube = r#"
-# Blender v2.92.0 Alpha OBJ File: ''
-# www.blender.org
-o Cube_Cube.001
-v -1.000000 -1.000000 1.000000
-v -1.000000 1.000000 1.000000
-v -1.000000 -1.000000 -1.000000
-v -1.000000 1.000000 -1.000000
-v 1.000000 -1.000000 1.000000
-v 1.000000 1.000000 1.000000
-v 1.000000 -1.000000 -1.000000
-v 1.000000 1.000000 -1.000000
-vt 0.375000 0.000000
-vt 0.625000 0.000000
-vt 0.625000 0.250000
-vt 0.375000 0.250000
-vt 0.625000 0.500000
-vt 0.375000 0.500000
-vt 0.625000 0.750000
-vt 0.375000 0.750000
-vt 0.625000 1.000000
-vt 0.375000 1.000000
-vt 0.125000 0.500000
-vt 0.125000 0.750000
-vt 0.875000 0.500000
-vt 0.875000 0.750000
-vn -1.0000 0.0000 0.0000
-vn 0.0000 0.0000 -1.0000
-vn 1.0000 0.0000 0.0000
-vn 0.0000 0.0000 1.0000
-vn 0.0000 -1.0000 0.0000
-vn 0.0000 1.0000 0.0000
-s off
-f 1/1/1 2/2/1 4/3/1 3/4/1
-f 3/4/2 4/3/2 8/5/2 7/6/2
-f 7/6/3 8/5/3 6/7/3 5/8/3
-f 5/8/4 6/7/4 2/9/4 1/10/4
-f 3/11/5 7/6/5 5/8/5 1/12/5
-f 8/5/6 4/13/6 2/14/6 6/7/6
-"#;
-    let cube_lines: Vec<&str> = cube.split('\n').collect();
-    let meshreader = MeshReader::from_lines(&cube_lines).unwrap();
-    let mesh = Mesh::read(&meshreader).unwrap();
+    let mesh = Mesh::read_file("/tmp/test.msgpack").unwrap();
 
     let mut camera = WindowCamera::new(
         glm::vec3(0.0, 0.0, 3.0),
