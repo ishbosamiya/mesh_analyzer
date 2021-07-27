@@ -10,7 +10,7 @@ use quick_renderer::mesh::MeshDrawData;
 use quick_renderer::shader;
 use quick_renderer::{egui, egui_glfw, gl, glfw, glm};
 
-use mesh_analyzer::prelude::*;
+use mesh_analyzer::{prelude::*, util};
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -108,9 +108,21 @@ fn main() {
             directional_light_shader.set_vec3("light.specular\0", &glm::vec3(1.0, 1.0, 1.0));
         }
 
-        directional_light_shader.use_shader();
-        mesh.draw(&mut MeshDrawData::new(&mut imm, &directional_light_shader))
-            .unwrap();
+        // Draw mesh
+        {
+            directional_light_shader.use_shader();
+            directional_light_shader.set_mat4(
+                "model\0",
+                &glm::convert(util::axis_conversion_matrix(
+                    util::Axis::Y,
+                    util::Axis::Z,
+                    util::Axis::NegZ,
+                    util::Axis::Y,
+                )),
+            );
+            mesh.draw(&mut MeshDrawData::new(&mut imm, &directional_light_shader))
+                .unwrap();
+        }
 
         // GUI starts
         {
