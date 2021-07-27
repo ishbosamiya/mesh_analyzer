@@ -124,8 +124,8 @@ fn main() {
             egui::SidePanel::left("Left Side Panel")
                 .resizable(true)
                 .show(egui.get_egui_ctx(), |ui| {
-                    config.draw_ui(ui);
-                    config.draw_ui_edit(ui);
+                    config.draw_ui(&mesh, ui);
+                    config.draw_ui_edit(&mesh, ui);
                 });
             let (width, height) = window.get_framebuffer_size();
             let _output = egui.end_frame(glm::vec2(width as _, height as _));

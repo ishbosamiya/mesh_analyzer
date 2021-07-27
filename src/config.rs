@@ -1,6 +1,6 @@
-use std::fmt::Display;
+use std::{fmt::Display, marker::PhantomData};
 
-use quick_renderer::egui;
+use quick_renderer::{egui, mesh};
 
 use crate::draw_ui::DrawUI;
 
@@ -32,24 +32,35 @@ impl Display for Element {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct Config {
+pub struct Config<END, EVD, EED, EFD> {
     element: Element,
     element_index: usize,
+    mesh_node_extra_data_type: PhantomData<END>,
+    mesh_vert_extra_data_type: PhantomData<EVD>,
+    mesh_edge_extra_data_type: PhantomData<EED>,
+    mesh_face_extra_data_type: PhantomData<EFD>,
 }
 
-impl Default for Config {
+impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
     fn default() -> Self {
         Self {
             element: Element::Node,
             element_index: 0,
+            mesh_node_extra_data_type: PhantomData,
+            mesh_vert_extra_data_type: PhantomData,
+            mesh_edge_extra_data_type: PhantomData,
+            mesh_face_extra_data_type: PhantomData,
         }
     }
 }
 
-impl DrawUI for Config {
-    fn draw_ui(&self, _ui: &mut egui::Ui) {}
+impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
+    type ExtraData = mesh::Mesh<END, EVD, EED, EFD>;
 
-    fn draw_ui_edit(&mut self, ui: &mut egui::Ui) {
+    fn draw_ui(&self, _extra_data: &Self::ExtraData, _ui: &mut egui::Ui) {}
+
+    fn draw_ui_edit(&mut self, extra_data: &Self::ExtraData, ui: &mut egui::Ui) {
+        let mesh = extra_data;
         egui::ComboBox::from_label("Element Type")
             .selected_text(format!("{}", self.element))
             .show_ui(ui, |ui| {
@@ -58,6 +69,15 @@ impl DrawUI for Config {
                 });
             });
 
-        ui.add(egui::Slider::new(&mut self.element_index, 0..=usize::MAX).text("Element Index"));
+        let num_elements = match self.element {
+            Element::Node => mesh.get_nodes().len(),
+            Element::Vert => mesh.get_verts().len(),
+            Element::Edge => mesh.get_edges().len(),
+            Element::Face => mesh.get_faces().len(),
+        };
+        ui.add(
+            egui::Slider::new(&mut self.element_index, 0..=(num_elements - 1))
+                .text("Element Index"),
+        );
     }
 }
