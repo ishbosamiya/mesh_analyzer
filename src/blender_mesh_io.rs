@@ -8,6 +8,7 @@ use quick_renderer::mesh;
 mod io_structs {
     use std::collections::HashMap;
 
+    use generational_arena::Arena;
     use quick_renderer::{glm, mesh};
     use serde::{Deserialize, Serialize};
 
@@ -106,68 +107,164 @@ mod io_structs {
 
     impl<END, EVD, EED, EFD> From<Mesh<END, EVD, EED, EFD>> for mesh::Mesh<END, EVD, EED, EFD> {
         fn from(mut io_mesh: Mesh<END, EVD, EED, EFD>) -> Self {
-            let mut mesh = Self::new();
+            // The referencing between the elements is set after all
+            // the elements are added to their respective arenas so
+            // that the positional mapping can be used to the correct
+            // arena index of the elements
+
+            let mut nodes = Arena::new();
+            let mut verts = Arena::new();
+            let mut edges = Arena::new();
+            let mut faces = Arena::new();
+
             io_mesh.nodes.iter_mut().for_each(|io_node| {
-                mesh.get_nodes_mut().insert_with(|self_index| {
+                nodes.insert_with(|self_index| {
                     let mut node = mesh::Node::new(mesh::NodeIndex(self_index), io_node.pos.into());
                     node.pos = io_node.pos.into();
                     node.normal = Some(io_node.normal.into());
                     node.extra_data = io_node.extra_data.take();
-
-                    // TODO(ish): need to set verts
 
                     node
                 });
             });
 
             io_mesh.verts.iter_mut().for_each(|io_vert| {
-                mesh.get_verts_mut().insert_with(|self_index| {
+                verts.insert_with(|self_index| {
                     let mut vert = mesh::Vert::new(mesh::VertIndex(self_index));
 
                     vert.uv = Some(io_vert.uv.into());
                     vert.extra_data = io_vert.extra_data.take();
-
-                    // TODO(ish): need to set node and edges
 
                     vert
                 });
             });
 
             io_mesh.edges.iter_mut().for_each(|io_edge| {
-                mesh.get_edges_mut().insert_with(|self_index| {
+                edges.insert_with(|self_index| {
                     let mut edge = mesh::Edge::new(mesh::EdgeIndex(self_index));
 
                     edge.extra_data = io_edge.extra_data.take();
 
-                    // TODO(ish): need to set verts and faces
                     edge
                 });
             });
 
             io_mesh.faces.iter_mut().for_each(|io_face| {
-                mesh.get_faces_mut().insert_with(|self_index| {
+                faces.insert_with(|self_index| {
                     let mut face = mesh::Face::new(mesh::FaceIndex(self_index));
 
                     face.normal = Some(io_face.normal.into());
                     face.extra_data = io_face.extra_data.take();
 
-                    // TODO(ish): need to set verts
-
                     face
                 });
             });
 
-            assert_eq!(io_mesh.faces.len(), mesh.get_faces().len());
-            assert_eq!(io_mesh.edges.len(), mesh.get_edges().len());
-            assert_eq!(io_mesh.verts.len(), mesh.get_verts().len());
-            assert_eq!(io_mesh.nodes.len(), mesh.get_nodes().len());
+            assert_eq!(io_mesh.faces.len(), faces.len());
+            assert_eq!(io_mesh.edges.len(), edges.len());
+            assert_eq!(io_mesh.verts.len(), verts.len());
+            assert_eq!(io_mesh.nodes.len(), nodes.len());
 
-            mesh
+            nodes
+                .iter_mut()
+                .zip(io_mesh.nodes.iter())
+                .for_each(|(node, io_node)| {
+                    let node_verts;
+                    unsafe {
+                        node_verts = node.1.get_verts_mut();
+                    }
+                    io_node.verts.iter().for_each(|io_node_vert_index| {
+                        let vert_i = io_mesh.vert_pos_index_map.get(io_node_vert_index).unwrap();
+                        node_verts.push(mesh::VertIndex(verts.get_unknown_gen(*vert_i).unwrap().1));
+                    });
+                });
+
+            verts
+                .iter_mut()
+                .zip(io_mesh.verts.iter())
+                .for_each(|(vert, io_vert)| {
+                    let vert_edges;
+                    unsafe {
+                        vert_edges = vert.1.get_edges_mut();
+                    }
+                    io_vert.edges.iter().for_each(|io_vert_edge_index| {
+                        let edge_i = io_mesh.edge_pos_index_map.get(io_vert_edge_index).unwrap();
+                        vert_edges.push(mesh::EdgeIndex(edges.get_unknown_gen(*edge_i).unwrap().1));
+                    });
+
+                    let vert_node;
+                    unsafe {
+                        vert_node = vert.1.get_node_mut();
+                    }
+
+                    *vert_node = io_vert.node.as_ref().map(|io_vert_node_index| {
+                        let node_i = io_mesh.node_pos_index_map.get(io_vert_node_index).unwrap();
+                        mesh::NodeIndex(nodes.get_unknown_gen(*node_i).unwrap().1)
+                    });
+                });
+
+            edges
+                .iter_mut()
+                .zip(io_mesh.edges.iter())
+                .for_each(|(edge, io_edge)| {
+                    let edge_verts;
+                    unsafe {
+                        edge_verts = edge.1.get_verts_mut();
+                    }
+                    *edge_verts =
+                        io_edge
+                            .verts
+                            .map(|(io_edge_vert_1_index, io_edge_vert_2_index)| {
+                                let edge_vert_1_i = io_mesh
+                                    .vert_pos_index_map
+                                    .get(&io_edge_vert_1_index)
+                                    .unwrap();
+
+                                let edge_vert_2_i = io_mesh
+                                    .vert_pos_index_map
+                                    .get(&io_edge_vert_2_index)
+                                    .unwrap();
+
+                                (
+                                    mesh::VertIndex(
+                                        verts.get_unknown_gen(*edge_vert_1_i).unwrap().1,
+                                    ),
+                                    mesh::VertIndex(
+                                        verts.get_unknown_gen(*edge_vert_2_i).unwrap().1,
+                                    ),
+                                )
+                            });
+
+                    let edge_faces;
+                    unsafe {
+                        edge_faces = edge.1.get_faces_mut();
+                    }
+                    io_edge.faces.iter().for_each(|io_edge_face_index| {
+                        let face_i = io_mesh.face_pos_index_map.get(io_edge_face_index).unwrap();
+                        edge_faces.push(mesh::FaceIndex(faces.get_unknown_gen(*face_i).unwrap().1))
+                    });
+                });
+
+            faces
+                .iter_mut()
+                .zip(io_mesh.faces.iter())
+                .for_each(|(face, io_face)| {
+                    let face_verts;
+                    unsafe {
+                        face_verts = face.1.get_verts_mut();
+                    }
+                    io_face.verts.iter().for_each(|io_face_vert_index| {
+                        let vert_i = io_mesh.vert_pos_index_map.get(io_face_vert_index).unwrap();
+                        face_verts.push(mesh::VertIndex(verts.get_unknown_gen(*vert_i).unwrap().1));
+                    });
+                });
+
+            Self::from_arenas(nodes, verts, edges, faces)
         }
     }
 }
 
-pub trait MeshExtension {
+pub trait MeshExtension<'de> {
     type Error;
 
     fn read_file<P: AsRef<Path>>(path: P) -> Result<Self, Self::Error>
@@ -178,7 +275,14 @@ pub trait MeshExtension {
         Self: Sized;
 }
 
-impl<END, EVD, EED, EFD> MeshExtension for mesh::Mesh<END, EVD, EED, EFD> {
+impl<
+        'de,
+        END: serde::Deserialize<'de> + std::fmt::Debug,
+        EVD: serde::Deserialize<'de> + std::fmt::Debug,
+        EED: serde::Deserialize<'de> + std::fmt::Debug,
+        EFD: serde::Deserialize<'de> + std::fmt::Debug,
+    > MeshExtension<'de> for mesh::Mesh<END, EVD, EED, EFD>
+{
     type Error = ();
 
     fn read_file<P: AsRef<Path>>(path: P) -> Result<Self, ()> {
@@ -195,11 +299,12 @@ impl<END, EVD, EED, EFD> MeshExtension for mesh::Mesh<END, EVD, EED, EFD> {
 
         let mut de = Deserializer::new(std::io::Cursor::new(&file));
 
-        let meshio: io_structs::Mesh<(), (), (), ()> = Deserialize::deserialize(&mut de).unwrap();
+        let meshio: io_structs::Mesh<END, EVD, EED, EFD> =
+            Deserialize::deserialize(&mut de).unwrap();
 
-        println!("meshio: {:?}", meshio);
+        let mesh: Self = meshio.into();
 
-        Ok(mesh::Mesh::new())
+        Ok(mesh)
     }
 }
 
@@ -209,6 +314,7 @@ mod tests {
 
     #[test]
     fn mesh_read_file_msgpack() {
-        mesh::simple::Mesh::read_file("/tmp/test.msgpack").unwrap();
+        let mesh = mesh::simple::Mesh::read_file("/tmp/test.msgpack").unwrap();
+        println!("mesh: {:?}", mesh);
     }
 }

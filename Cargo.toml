@@ -10,6 +10,7 @@ edition = "2018"
 quick_renderer = { git = "ssh://git@github.com/ishbosamiya/quick_renderer.git" }
 rmp-serde = "0.15"
 serde = { version = "1.0", features = ["derive"] }
+generational-arena = "0.2"
 
 [patch."ssh://git@github.com/ishbosamiya/quick_renderer.git"]
 quick_renderer = { path = "../../../quick_renderer/" }
