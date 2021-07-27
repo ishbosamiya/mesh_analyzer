@@ -10,6 +10,7 @@ use quick_renderer::mesh::MeshDrawData;
 use quick_renderer::shader;
 use quick_renderer::{egui, egui_glfw, gl, glfw, glm};
 
+use mesh_analyzer::config::Config;
 use mesh_analyzer::prelude::*;
 
 fn main() {
@@ -76,6 +77,8 @@ fn main() {
 
     let mut last_cursor = window.get_cursor_pos();
 
+    let mut config = Config::default();
+
     while !window.should_close() {
         glfw.poll_events();
 
@@ -118,9 +121,12 @@ fn main() {
         // GUI starts
         {
             egui.begin_frame(&window, &mut glfw);
-            egui::Window::new("Hello world!").show(egui.get_egui_ctx(), |ui| {
-                ui.label("Hello World, Simple Render!");
-            });
+            egui::SidePanel::left("Left Side Panel")
+                .resizable(true)
+                .show(egui.get_egui_ctx(), |ui| {
+                    config.draw_ui(ui);
+                    config.draw_ui_edit(ui);
+                });
             let (width, height) = window.get_framebuffer_size();
             let _output = egui.end_frame(glm::vec2(width as _, height as _));
         }
