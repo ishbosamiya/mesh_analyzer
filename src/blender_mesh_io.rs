@@ -417,7 +417,9 @@ impl<
                 // visualized
                 self.visualize_node(config, &uv_plane_3d_model_matrix, &mesh_model_matrix, imm);
             }
-            crate::config::Element::Vert => todo!(),
+            crate::config::Element::Vert => {
+                self.visualize_vert(config, &uv_plane_3d_model_matrix, &mesh_model_matrix, imm)
+            }
             crate::config::Element::Edge => todo!(),
             crate::config::Element::Face => todo!(),
         }
@@ -425,7 +427,7 @@ impl<
 }
 
 trait MeshExtensionPrivate<END, EVD, EED, EFD> {
-    /// Tries to visualize all the links between the node and verts
+    /// Tries to visualize all the links stored in the node
     /// that refer to it.
     ///
     /// It returns back all the verts that cannot be visualized.
@@ -436,6 +438,19 @@ trait MeshExtensionPrivate<END, EVD, EED, EFD> {
         mesh_model_matrix: &glm::DMat4,
         imm: &mut GPUImmediate,
     ) -> Vec<mesh::VertIndex>;
+
+    /// Tries to visualize all the links stored in the node
+    /// that refer to it.
+    ///
+    /// It returns back all the edges and node that cannot be visualized.
+    /// TODO(ish): the returning part
+    fn visualize_vert(
+        &self,
+        config: &Config<END, EVD, EED, EFD>,
+        uv_plane_3d_model_matrix: &glm::DMat4,
+        mesh_model_matrix: &glm::DMat4,
+        imm: &mut GPUImmediate,
+    );
 }
 
 impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
@@ -458,15 +473,11 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
             let vert = self.get_vert(*vert_index).unwrap();
             match vert.uv {
                 Some(uv) => {
-                    let uv_pos: glm::DVec3 = glm::vec4_to_vec3(
-                        &(uv_plane_3d_model_matrix * math::append_one(&glm::vec2_to_vec3(&uv))),
-                    );
+                    let uv_pos = apply_model_matrix_vec2(&uv, uv_plane_3d_model_matrix);
 
-                    let node_pos_applied =
-                        glm::vec4_to_vec3(&(mesh_model_matrix * math::append_one(&node.pos)));
-                    let node_normal_applied = glm::vec4_to_vec3(
-                        &(mesh_model_matrix * math::append_one(&node.normal.unwrap())),
-                    );
+                    let node_pos_applied = apply_model_matrix_vec3(&node.pos, mesh_model_matrix);
+                    let node_normal_applied =
+                        apply_model_matrix_vec3(&node.normal.unwrap(), mesh_model_matrix);
 
                     let curve = CubicBezierCurve::new(
                         node_pos_applied,
@@ -488,6 +499,76 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
         });
         no_uv_verts
     }
+
+    fn visualize_vert(
+        &self,
+        config: &Config<END, EVD, EED, EFD>,
+        uv_plane_3d_model_matrix: &glm::DMat4,
+        mesh_model_matrix: &glm::DMat4,
+        imm: &mut GPUImmediate,
+    ) {
+        let color = glm::vec4(0.1, 0.8, 0.8, 1.0);
+
+        let vert = self
+            .get_verts()
+            .get_unknown_gen(config.get_element_index())
+            .unwrap()
+            .0;
+
+        vert.get_edges().iter().for_each(|edge_index| {
+            let edge = self.get_edge(*edge_index).unwrap();
+            let v1_index = edge.get_verts().unwrap().0;
+            let v2_index = edge.get_verts().unwrap().1;
+
+            let v1 = self.get_vert(v1_index).unwrap();
+            let v2 = self.get_vert(v2_index).unwrap();
+
+            let v1_uv = v1.uv.unwrap();
+            let v2_uv = v2.uv.unwrap();
+
+            let v1_uv_applied = apply_model_matrix_vec2(&v1_uv, uv_plane_3d_model_matrix);
+            let v2_uv_applied = apply_model_matrix_vec2(&v2_uv, uv_plane_3d_model_matrix);
+
+            let curve = CubicBezierCurve::new(
+                v1_uv_applied,
+                v1_uv_applied,
+                v2_uv_applied,
+                v2_uv_applied,
+                20,
+            );
+
+            curve
+                .draw(&mut CubicBezierCurveDrawData::new(imm, color))
+                .unwrap();
+        });
+
+        let node = self.get_node(vert.get_node().unwrap()).unwrap();
+        let uv = vert.uv.unwrap();
+        let uv_pos = apply_model_matrix_vec2(&uv, uv_plane_3d_model_matrix);
+
+        let node_pos_applied = apply_model_matrix_vec3(&node.pos, mesh_model_matrix);
+        let node_normal_applied = apply_model_matrix_vec3(&node.normal.unwrap(), mesh_model_matrix);
+
+        let curve = CubicBezierCurve::new(
+            node_pos_applied,
+            node_pos_applied + node_normal_applied,
+            uv_pos,
+            uv_pos,
+            20,
+        );
+
+        curve
+            .draw(&mut CubicBezierCurveDrawData::new(imm, color))
+            .unwrap();
+    }
+}
+
+fn apply_model_matrix_vec2(v: &glm::DVec2, model: &glm::DMat4) -> glm::DVec3 {
+    glm::vec4_to_vec3(&(model * math::append_one(&glm::vec2_to_vec3(&v))))
+}
+
+fn apply_model_matrix_vec3(v: &glm::DVec3, model: &glm::DMat4) -> glm::DVec3 {
+    glm::vec4_to_vec3(&(model * math::append_one(&v)))
 }
 
 #[cfg(test)]
