@@ -136,6 +136,7 @@ impl Drawable<CubicBezierCurveDrawData<'_>, Error> for CubicBezierCurve {
 
 /// Based on https://en.wikipedia.org/wiki/Point-normal_triangle and
 /// https://alex.vlachos.com/graphics/CurvedPNTriangles.pdf
+#[derive(Debug, Clone)]
 pub struct CubicPointNormalTriangle {
     pub p1: glm::DVec3,
     pub p2: glm::DVec3,
@@ -151,9 +152,12 @@ pub struct CubicPointNormalTriangle {
 impl Default for CubicPointNormalTriangle {
     fn default() -> Self {
         Self {
-            p1: Default::default(),
-            p2: Default::default(),
-            p3: Default::default(),
+            // p1: Default::default(),
+            // p2: Default::default(),
+            // p3: Default::default(),
+            p1: glm::vec3(1.0, 0.0, 0.0),
+            p2: glm::vec3(-1.0, 0.0, 0.0),
+            p3: glm::vec3(0.0, 0.0, 1.0),
             n1: glm::vec3(0.0, 1.0, 0.0),
             n2: glm::vec3(0.0, 1.0, 0.0),
             n3: glm::vec3(0.0, 1.0, 0.0),
@@ -211,92 +215,47 @@ impl CubicPointNormalTriangle {
         let v = (p1 + p2 + p3) / 3.0;
         let b111 = e + (e - v) / 2.0;
 
-        // TODO(ish): do the normal information stuff
-        let normal = glm::vec3(1.0, 1.0, 1.0);
+        let n300 = *n1;
+        let n030 = *n2;
+        let n003 = *n3;
+
+        let bary_b210 = calculate_barycentric_coords(p1, p2, p3, &b210);
+        let n210 = apply_barycentric_coords(&bary_b210, n1, n2, n3);
+        let bary_b120 = calculate_barycentric_coords(p1, p2, p3, &b120);
+        let n120 = apply_barycentric_coords(&bary_b120, n1, n2, n3);
+        let bary_b021 = calculate_barycentric_coords(p1, p2, p3, &b021);
+        let n021 = apply_barycentric_coords(&bary_b021, n1, n2, n3);
+        let bary_b012 = calculate_barycentric_coords(p1, p2, p3, &b012);
+        let n012 = apply_barycentric_coords(&bary_b012, n1, n2, n3);
+        let bary_b102 = calculate_barycentric_coords(p1, p2, p3, &b102);
+        let n102 = apply_barycentric_coords(&bary_b102, n1, n2, n3);
+        let bary_b201 = calculate_barycentric_coords(p1, p2, p3, &b201);
+        let n201 = apply_barycentric_coords(&bary_b201, n1, n2, n3);
+        let bary_b111 = calculate_barycentric_coords(p1, p2, p3, &b111);
+        let n111 = apply_barycentric_coords(&bary_b111, n1, n2, n3);
 
         [
-            CubicPointNormalTriangle::new(
-                b300,
-                b210,
-                b201,
-                normal,
-                normal,
-                normal,
-                self.num_steps - 1,
-            ),
-            CubicPointNormalTriangle::new(
-                b210,
-                b120,
-                b111,
-                normal,
-                normal,
-                normal,
-                self.num_steps - 1,
-            ),
-            CubicPointNormalTriangle::new(
-                b210,
-                b111,
-                b201,
-                normal,
-                normal,
-                normal,
-                self.num_steps - 1,
-            ),
-            CubicPointNormalTriangle::new(
-                b201,
-                b111,
-                b102,
-                normal,
-                normal,
-                normal,
-                self.num_steps - 1,
-            ),
-            CubicPointNormalTriangle::new(
-                b120,
-                b030,
-                b021,
-                normal,
-                normal,
-                normal,
-                self.num_steps - 1,
-            ),
-            CubicPointNormalTriangle::new(
-                b120,
-                b021,
-                b111,
-                normal,
-                normal,
-                normal,
-                self.num_steps - 1,
-            ),
-            CubicPointNormalTriangle::new(
-                b111,
-                b021,
-                b012,
-                normal,
-                normal,
-                normal,
-                self.num_steps - 1,
-            ),
-            CubicPointNormalTriangle::new(
-                b111,
-                b012,
-                b102,
-                normal,
-                normal,
-                normal,
-                self.num_steps - 1,
-            ),
-            CubicPointNormalTriangle::new(
-                b102,
-                b012,
-                b003,
-                normal,
-                normal,
-                normal,
-                self.num_steps - 1,
-            ),
+            CubicPointNormalTriangle::new(b300, b210, b201, n300, n210, n201, self.num_steps - 1),
+            CubicPointNormalTriangle::new(b210, b120, b111, n210, n120, n111, self.num_steps - 1),
+            CubicPointNormalTriangle::new(b210, b111, b201, n210, n111, n201, self.num_steps - 1),
+            CubicPointNormalTriangle::new(b201, b111, b102, n201, n111, n102, self.num_steps - 1),
+            CubicPointNormalTriangle::new(b120, b030, b021, n120, n030, n021, self.num_steps - 1),
+            CubicPointNormalTriangle::new(b120, b021, b111, n120, n021, n111, self.num_steps - 1),
+            CubicPointNormalTriangle::new(b111, b021, b012, n111, n021, n012, self.num_steps - 1),
+            CubicPointNormalTriangle::new(b111, b012, b102, n111, n012, n102, self.num_steps - 1),
+            CubicPointNormalTriangle::new(b102, b012, b003, n102, n012, n003, self.num_steps - 1),
         ]
+    }
+
+    pub fn compute_all(&self) -> Vec<CubicPointNormalTriangle> {
+        let mut triangles = vec![self.clone()];
+        (0..self.num_steps).for_each(|_| {
+            triangles = triangles
+                .drain(..)
+                .flat_map(|triangle| triangle.compute_one_level().to_vec())
+                .collect();
+        });
+        triangles
     }
 }
 
@@ -340,23 +299,32 @@ impl Drawable<CubicPointNormalTriangleDrawData<'_>, Error> for CubicPointNormalT
 
         smooth_color_3d_shader.use_shader();
 
-        imm.begin(GPUPrimType::Tris, 9 * 3, &smooth_color_3d_shader);
+        let triangles = self.compute_all();
 
-        // TODO(ish): need to compute multiple levels
-
-        let triangles = self.compute_one_level();
+        imm.begin(
+            GPUPrimType::Tris,
+            triangles.len() * 3,
+            &smooth_color_3d_shader,
+        );
 
         triangles.iter().for_each(|triangle| {
             let p1: glm::Vec3 = glm::convert(triangle.p1);
             let p2: glm::Vec3 = glm::convert(triangle.p2);
             let p3: glm::Vec3 = glm::convert(triangle.p3);
-            imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+            let n1: glm::Vec3 = glm::convert((triangle.n1 + glm::vec3(1.0, 1.0, 1.0)) * 0.5);
+            let n2: glm::Vec3 = glm::convert((triangle.n2 + glm::vec3(1.0, 1.0, 1.0)) * 0.5);
+            let n3: glm::Vec3 = glm::convert((triangle.n3 + glm::vec3(1.0, 1.0, 1.0)) * 0.5);
+
+            // imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+            imm.attr_4f(color_attr, n1[0], n1[1], n1[2], 1.0);
             imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
 
-            imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+            // imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+            imm.attr_4f(color_attr, n2[0], n2[1], n2[2], 1.0);
             imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
 
-            imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+            // imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+            imm.attr_4f(color_attr, n3[0], n3[1], n3[2], 1.0);
             imm.vertex_3f(pos_attr, p3[0], p3[1], p3[2]);
         });
 
@@ -371,4 +339,42 @@ impl Drawable<CubicPointNormalTriangleDrawData<'_>, Error> for CubicPointNormalT
     ) -> Result<(), Error> {
         unreachable!()
     }
+}
+
+/// Given p1, p2, p3 that form the triangle, and p is the point for
+/// which the barycentric coords must be found.
+///
+/// # Reference
+/// https://gamedev.stackexchange.com/questions/23743/whats-the-most-efficient-way-to-find-barycentric-coordinates
+fn calculate_barycentric_coords(
+    p1: &glm::DVec3,
+    p2: &glm::DVec3,
+    p3: &glm::DVec3,
+    p: &glm::DVec3,
+) -> glm::DVec3 {
+    let v0 = p2 - p1;
+    let v1 = p3 - p1;
+    let v2 = p - p1;
+
+    let d00 = glm::dot(&v0, &v0);
+    let d01 = glm::dot(&v0, &v1);
+    let d11 = glm::dot(&v1, &v1);
+    let d20 = glm::dot(&v2, &v0);
+    let d21 = glm::dot(&v2, &v1);
+
+    #[allow(clippy::suspicious_operation_groupings)]
+    let denom = d00 * d11 - d01 * d01;
+    let v = (d11 * d20 - d01 * d21) / denom;
+    let w = (d00 * d21 - d01 * d20) / denom;
+    let u = 1.0 - v - w;
+    glm::vec3(u, v, w)
+}
+
+fn apply_barycentric_coords(
+    bary_coords: &glm::DVec3,
+    p1: &glm::DVec3,
+    p2: &glm::DVec3,
+    p3: &glm::DVec3,
+) -> glm::DVec3 {
+    bary_coords[0] * p1 + bary_coords[1] * p2 + bary_coords[2] * p3
 }

@@ -182,6 +182,11 @@ fn main() {
                         config.draw_ui(&mesh, ui);
                         config.draw_ui_edit(&mesh, ui);
 
+                        ui.label("Num Steps");
+                        ui.add(
+                            egui::Slider::new(&mut pn_triangle.num_steps, 0..=5)
+                                .clamp_to_range(true),
+                        );
                         ui.label("p1");
                         ui.add(ui_widgets::Vec3::new(&mut pn_triangle.p1));
                         ui.label("p2");
@@ -190,10 +195,19 @@ fn main() {
                         ui.add(ui_widgets::Vec3::new(&mut pn_triangle.p3));
                         ui.label("n1");
                         ui.add(ui_widgets::Vec3::new(&mut pn_triangle.n1));
+                        if ui.button("normalize").clicked() {
+                            pn_triangle.n1.normalize_mut();
+                        }
                         ui.label("n2");
                         ui.add(ui_widgets::Vec3::new(&mut pn_triangle.n2));
+                        if ui.button("normalize").clicked() {
+                            pn_triangle.n2.normalize_mut();
+                        }
                         ui.label("n3");
                         ui.add(ui_widgets::Vec3::new(&mut pn_triangle.n3));
+                        if ui.button("normalize").clicked() {
+                            pn_triangle.n3.normalize_mut();
+                        }
                     });
                 });
             let (width, height) = window.get_framebuffer_size();
