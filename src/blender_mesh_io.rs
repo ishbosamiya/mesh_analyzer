@@ -7,6 +7,7 @@ use quick_renderer::drawable::Drawable;
 use quick_renderer::gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode};
 use quick_renderer::{glm, mesh, shader};
 
+use crate::math;
 use crate::{
     config::Config,
     curve::{CubicBezierCurve, CubicBezierCurveDrawData},
@@ -330,7 +331,7 @@ impl<
     }
 
     fn draw_uv(&self, uv_plane_3d_model_matrix: &glm::Mat4, imm: &mut GPUImmediate) {
-        let color = glm::vec4(1.0, 1.0, 1.0, 1.0);
+        let color = glm::vec4(0.42, 0.55, 0.7, 1.0);
 
         let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
             .as_ref()
@@ -431,10 +432,9 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
             let vert = self.get_vert(*vert_index).unwrap();
             match vert.uv {
                 Some(uv) => {
-                    let uv_pos: glm::DVec3 =
-                        uv_plane_3d_model_matrix.transform_vector(&glm::vec2_to_vec3(&uv));
-                    // let uv_pos: glm::DVec3 =
-                    //     glm::vec4_to_vec3(&(uv_plane_3d_model_matrix * glm::vec2_to_vec4(&uv)));
+                    let uv_pos: glm::DVec3 = glm::vec4_to_vec3(
+                        &(uv_plane_3d_model_matrix * math::append_one(&glm::vec2_to_vec3(&uv))),
+                    );
 
                     let curve = CubicBezierCurve::new(
                         node.pos,
