@@ -4,7 +4,7 @@ use glfw::{Action, Context, Key};
 
 use quick_renderer::camera::WindowCamera;
 use quick_renderer::drawable::Drawable;
-use quick_renderer::gpu_immediate::GPUImmediate;
+use quick_renderer::gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode};
 use quick_renderer::mesh::simple::Mesh;
 use quick_renderer::mesh::MeshDrawData;
 use quick_renderer::shader;
@@ -12,6 +12,39 @@ use quick_renderer::{egui, egui_glfw, gl, glfw, glm};
 
 use mesh_analyzer::config::Config;
 use mesh_analyzer::prelude::*;
+
+struct Curve {
+    p0: glm::DVec3,
+    p1: glm::DVec3,
+    p2: glm::DVec3,
+    p3: glm::DVec3,
+    num_steps: usize,
+}
+
+impl Default for Curve {
+    fn default() -> Self {
+        Self {
+            p0: Default::default(),
+            p1: Default::default(),
+            p2: Default::default(),
+            p3: Default::default(),
+            num_steps: 2,
+        }
+    }
+}
+
+fn cubic_bezier(
+    p0: &glm::DVec3,
+    p1: &glm::DVec3,
+    p2: &glm::DVec3,
+    p3: &glm::DVec3,
+    t: f64,
+) -> glm::DVec3 {
+    (1.0 - t).powi(3) * p0
+        + 3.0 * (1.0 - t).powi(2) * t * p1
+        + 3.0 * (1.0 - t) * t.powi(2) * p2
+        + t.powi(3) * p3
+}
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -77,15 +110,27 @@ fn main() {
     let directional_light_shader = shader::builtins::get_directional_light_shader()
         .as_ref()
         .unwrap();
+
+    let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
+        .as_ref()
+        .unwrap();
+
     println!(
         "directional_light: uniforms: {:?} attributes: {:?}",
         directional_light_shader.get_uniforms(),
         directional_light_shader.get_attributes(),
     );
+    println!(
+        "smooth_color_3d: uniforms: {:?} attributes: {:?}",
+        smooth_color_3d_shader.get_uniforms(),
+        smooth_color_3d_shader.get_attributes(),
+    );
 
     let mut last_cursor = window.get_cursor_pos();
 
     let mut config = Config::default();
+
+    let mut curve = Curve::default();
 
     while !window.should_close() {
         glfw.poll_events();
@@ -102,21 +147,31 @@ fn main() {
 
         // Shader stuff
         {
-            directional_light_shader.use_shader();
-            directional_light_shader.set_mat4(
-                "projection\0",
-                &glm::convert(camera.get_projection_matrix(&window)),
-            );
-            directional_light_shader.set_mat4("view\0", &glm::convert(camera.get_view_matrix()));
-            directional_light_shader.set_mat4("model\0", &glm::identity());
-            directional_light_shader.set_vec3("viewPos\0", &glm::convert(camera.get_position()));
-            directional_light_shader.set_vec3("material.color\0", &glm::vec3(0.3, 0.2, 0.7));
-            directional_light_shader.set_vec3("material.specular\0", &glm::vec3(0.3, 0.3, 0.3));
-            directional_light_shader.set_float("material.shininess\0", 4.0);
-            directional_light_shader.set_vec3("light.direction\0", &glm::vec3(-0.7, -1.0, -0.7));
-            directional_light_shader.set_vec3("light.ambient\0", &glm::vec3(0.3, 0.3, 0.3));
-            directional_light_shader.set_vec3("light.diffuse\0", &glm::vec3(1.0, 1.0, 1.0));
-            directional_light_shader.set_vec3("light.specular\0", &glm::vec3(1.0, 1.0, 1.0));
+            let projection_matrix = glm::convert(camera.get_projection_matrix(&window));
+            let view_matrix = glm::convert(camera.get_view_matrix());
+            {
+                directional_light_shader.use_shader();
+                directional_light_shader.set_mat4("projection\0", &projection_matrix);
+                directional_light_shader.set_mat4("view\0", &view_matrix);
+                directional_light_shader.set_mat4("model\0", &glm::identity());
+                directional_light_shader
+                    .set_vec3("viewPos\0", &glm::convert(camera.get_position()));
+                directional_light_shader.set_vec3("material.color\0", &glm::vec3(0.3, 0.2, 0.7));
+                directional_light_shader.set_vec3("material.specular\0", &glm::vec3(0.3, 0.3, 0.3));
+                directional_light_shader.set_float("material.shininess\0", 4.0);
+                directional_light_shader
+                    .set_vec3("light.direction\0", &glm::vec3(-0.7, -1.0, -0.7));
+                directional_light_shader.set_vec3("light.ambient\0", &glm::vec3(0.3, 0.3, 0.3));
+                directional_light_shader.set_vec3("light.diffuse\0", &glm::vec3(1.0, 1.0, 1.0));
+                directional_light_shader.set_vec3("light.specular\0", &glm::vec3(1.0, 1.0, 1.0));
+            }
+
+            {
+                smooth_color_3d_shader.use_shader();
+                smooth_color_3d_shader.set_mat4("projection\0", &projection_matrix);
+                smooth_color_3d_shader.set_mat4("view\0", &view_matrix);
+                smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
+            }
         }
 
         // Draw mesh
@@ -124,6 +179,42 @@ fn main() {
             directional_light_shader.use_shader();
             mesh.draw(&mut MeshDrawData::new(&mut imm, &directional_light_shader))
                 .unwrap();
+
+            {
+                let format = imm.get_cleared_vertex_format();
+                let pos_attr = format.add_attribute(
+                    "in_pos\0".to_string(),
+                    GPUVertCompType::F32,
+                    3,
+                    GPUVertFetchMode::Float,
+                );
+                let color_attr = format.add_attribute(
+                    "in_color\0".to_string(),
+                    GPUVertCompType::F32,
+                    4,
+                    GPUVertFetchMode::Float,
+                );
+
+                smooth_color_3d_shader.use_shader();
+
+                imm.begin(
+                    GPUPrimType::LineStrip,
+                    curve.num_steps,
+                    &smooth_color_3d_shader,
+                );
+
+                (0..curve.num_steps).for_each(|t| {
+                    let t = t as f64 * 1.0 / (curve.num_steps - 1) as f64;
+                    let point = cubic_bezier(&curve.p0, &curve.p1, &curve.p2, &curve.p3, t);
+
+                    let point: glm::Vec3 = glm::convert(point);
+
+                    imm.attr_4f(color_attr, 0.1, 0.53, 0.8, 1.0);
+                    imm.vertex_3f(pos_attr, point[0], point[1], point[2]);
+                });
+
+                imm.end();
+            }
         }
 
         // GUI starts
@@ -134,6 +225,36 @@ fn main() {
                 .show(egui.get_egui_ctx(), |ui| {
                     config.draw_ui(&mesh, ui);
                     config.draw_ui_edit(&mesh, ui);
+
+                    let mut draw_point_ui = |text: &str, point: &mut glm::DVec3| {
+                        ui.label(text);
+                        ui.add(
+                            egui::Slider::new(&mut point[0], -10.0..=10.0)
+                                .max_decimals(2)
+                                .text("x"),
+                        );
+                        ui.add(
+                            egui::Slider::new(&mut point[1], -10.0..=10.0)
+                                .max_decimals(2)
+                                .text("y"),
+                        );
+                        ui.add(
+                            egui::Slider::new(&mut point[2], -10.0..=10.0)
+                                .max_decimals(2)
+                                .text("z"),
+                        );
+                    };
+
+                    draw_point_ui("Point 0", &mut curve.p0);
+                    draw_point_ui("Point 1", &mut curve.p1);
+                    draw_point_ui("Point 2", &mut curve.p2);
+                    draw_point_ui("Point 3", &mut curve.p3);
+                    ui.add(
+                        egui::Slider::new(&mut curve.num_steps, 2..=1000)
+                            .logarithmic(true)
+                            .clamp_to_range(true)
+                            .text("Num Steps"),
+                    );
                 });
             let (width, height) = window.get_framebuffer_size();
             let _output = egui.end_frame(glm::vec2(width as _, height as _));
