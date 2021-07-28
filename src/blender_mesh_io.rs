@@ -4,8 +4,8 @@ use serde::Deserialize;
 use std::path::Path;
 
 use quick_renderer::drawable::Drawable;
-use quick_renderer::gpu_immediate::GPUImmediate;
-use quick_renderer::{glm, mesh};
+use quick_renderer::gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode};
+use quick_renderer::{glm, mesh, shader};
 
 use crate::{
     config::Config,
@@ -292,6 +292,8 @@ pub trait MeshExtension<'de, END, EVD, EED, EFD> {
     where
         Self: Sized;
 
+    fn draw_uv(&self, uv_plane_3d_model_matrix: &glm::Mat4, imm: &mut GPUImmediate);
+
     fn visualize_config(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate);
 }
 
@@ -327,12 +329,68 @@ impl<
         Ok(mesh)
     }
 
+    fn draw_uv(&self, uv_plane_3d_model_matrix: &glm::Mat4, imm: &mut GPUImmediate) {
+        let color = glm::vec4(1.0, 1.0, 1.0, 1.0);
+
+        let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
+            .as_ref()
+            .unwrap();
+
+        let format = imm.get_cleared_vertex_format();
+        let pos_attr = format.add_attribute(
+            "in_pos\0".to_string(),
+            GPUVertCompType::F32,
+            3,
+            GPUVertFetchMode::Float,
+        );
+        let color_attr = format.add_attribute(
+            "in_color\0".to_string(),
+            GPUVertCompType::F32,
+            4,
+            GPUVertFetchMode::Float,
+        );
+
+        smooth_color_3d_shader.use_shader();
+
+        smooth_color_3d_shader.set_mat4("model\0", uv_plane_3d_model_matrix);
+
+        imm.begin(
+            GPUPrimType::Lines,
+            self.get_edges().len() * 2,
+            &smooth_color_3d_shader,
+        );
+
+        self.get_edges()
+            .iter()
+            .for_each(|(_, edge)| match edge.get_verts() {
+                Some((v1_index, v2_index)) => {
+                    let v1 = self.get_vert(*v1_index).unwrap();
+                    let v2 = self.get_vert(*v2_index).unwrap();
+
+                    let uv_1_pos: glm::Vec3 =
+                        glm::convert(glm::vec2_to_vec3(v1.uv.as_ref().unwrap()));
+                    let uv_2_pos: glm::Vec3 =
+                        glm::convert(glm::vec2_to_vec3(v2.uv.as_ref().unwrap()));
+
+                    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                    imm.vertex_3f(pos_attr, uv_1_pos[0], uv_1_pos[1], uv_1_pos[2]);
+
+                    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                    imm.vertex_3f(pos_attr, uv_2_pos[0], uv_2_pos[1], uv_2_pos[2]);
+                }
+                None => {}
+            });
+
+        imm.end();
+    }
+
     fn visualize_config(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate) {
+        let uv_plane_3d_model_matrix = config.get_uv_plane_3d_model_matrix();
         match config.get_element() {
             crate::config::Element::Node => {
                 // TODO(ish): handle showing which verts couldn't be
                 // visualized
-                self.visualize_node(config, imm);
+                self.visualize_node(config, &uv_plane_3d_model_matrix, imm);
             }
             crate::config::Element::Vert => todo!(),
             crate::config::Element::Edge => todo!(),
@@ -349,6 +407,7 @@ trait MeshExtensionPrivate<END, EVD, EED, EFD> {
     fn visualize_node(
         &self,
         config: &Config<END, EVD, EED, EFD>,
+        uv_plane_3d_model_matrix: &glm::DMat4,
         imm: &mut GPUImmediate,
     ) -> Vec<mesh::VertIndex>;
 }
@@ -359,6 +418,7 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
     fn visualize_node(
         &self,
         config: &Config<END, EVD, EED, EFD>,
+        uv_plane_3d_model_matrix: &glm::DMat4,
         imm: &mut GPUImmediate,
     ) -> Vec<mesh::VertIndex> {
         let mut no_uv_verts = Vec::new();
@@ -371,9 +431,10 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
             let vert = self.get_vert(*vert_index).unwrap();
             match vert.uv {
                 Some(uv) => {
-                    let uv_pos: glm::DVec3 = config
-                        .get_uv_plane_3d_model_matrix()
-                        .transform_vector(&glm::vec2_to_vec3(&uv));
+                    let uv_pos: glm::DVec3 =
+                        uv_plane_3d_model_matrix.transform_vector(&glm::vec2_to_vec3(&uv));
+                    // let uv_pos: glm::DVec3 =
+                    //     glm::vec4_to_vec3(&(uv_plane_3d_model_matrix * glm::vec2_to_vec4(&uv)));
 
                     let curve = CubicBezierCurve::new(
                         node.pos,

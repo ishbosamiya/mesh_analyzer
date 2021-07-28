@@ -2,7 +2,11 @@ use std::{fmt::Display, marker::PhantomData};
 
 use quick_renderer::{egui, glm, mesh};
 
-use crate::draw_ui::DrawUI;
+use crate::{
+    draw_ui::DrawUI,
+    math::{self, Transform},
+    ui_widgets,
+};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Element {
@@ -31,12 +35,12 @@ impl Display for Element {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct Config<END, EVD, EED, EFD> {
     element: Element,
     element_index: usize,
 
-    uv_plane_3d_model_matrix: glm::DMat4,
+    uv_plane_3d_transform: math::Transform,
 
     mesh_node_extra_data_type: PhantomData<END>,
     mesh_vert_extra_data_type: PhantomData<EVD>,
@@ -50,7 +54,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             element: Element::Node,
             element_index: 0,
 
-            uv_plane_3d_model_matrix: glm::identity(),
+            uv_plane_3d_transform: Default::default(),
 
             mesh_node_extra_data_type: PhantomData,
             mesh_vert_extra_data_type: PhantomData,
@@ -86,6 +90,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                 .clamp_to_range(true)
                 .text("Element Index"),
         );
+        ui.add(ui_widgets::Transform::new(&mut self.uv_plane_3d_transform));
     }
 }
 
@@ -98,7 +103,11 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
         self.element_index
     }
 
-    pub fn get_uv_plane_3d_model_matrix(&self) -> &glm::DMat4 {
-        &self.uv_plane_3d_model_matrix
+    pub fn get_uv_plane_3d_transform(&self) -> &Transform {
+        &self.uv_plane_3d_transform
+    }
+
+    pub fn get_uv_plane_3d_model_matrix(&self) -> glm::DMat4 {
+        self.uv_plane_3d_transform.get_matrix()
     }
 }

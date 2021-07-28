@@ -97,7 +97,7 @@ fn main() {
 
     let mut config = Config::default();
 
-    let mut uv_plane_transform = math::Transform::default();
+    let mut mesh_transform = math::Transform::default();
 
     while !window.should_close() {
         glfw.poll_events();
@@ -144,9 +144,20 @@ fn main() {
         // Draw mesh
         {
             directional_light_shader.use_shader();
+
+            let model = glm::convert(mesh_transform.get_matrix());
+            directional_light_shader.set_mat4("model\0", &model);
+
             mesh.draw(&mut MeshDrawData::new(&mut imm, &directional_light_shader))
                 .unwrap();
 
+            mesh.draw_uv(
+                &glm::convert(config.get_uv_plane_3d_model_matrix()),
+                &mut imm,
+            );
+
+            smooth_color_3d_shader.use_shader();
+            smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
             mesh.visualize_config(&config, &mut imm);
         }
 
@@ -159,7 +170,7 @@ fn main() {
                     config.draw_ui(&mesh, ui);
                     config.draw_ui_edit(&mesh, ui);
 
-                    ui.add(ui_widgets::Transform::new(&mut uv_plane_transform));
+                    ui.add(ui_widgets::Transform::new(&mut mesh_transform));
                 });
             let (width, height) = window.get_framebuffer_size();
             let _output = egui.end_frame(glm::vec2(width as _, height as _));
