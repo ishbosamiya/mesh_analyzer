@@ -508,6 +508,7 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
         imm: &mut GPUImmediate,
     ) {
         let color = glm::vec4(0.1, 0.8, 0.8, 1.0);
+        let normal_pull_factor = 0.2;
 
         let vert = self
             .get_verts()
@@ -529,10 +530,13 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
             let v1_uv_applied = apply_model_matrix_vec2(&v1_uv, uv_plane_3d_model_matrix);
             let v2_uv_applied = apply_model_matrix_vec2(&v2_uv, uv_plane_3d_model_matrix);
 
+            let initial_normal = glm::vec3(0.0, 0.0, 1.0);
+            let normal_applied = apply_model_matrix_vec3(&initial_normal, uv_plane_3d_model_matrix);
+
             let curve = CubicBezierCurve::new(
                 v1_uv_applied,
-                v1_uv_applied,
-                v2_uv_applied,
+                v1_uv_applied + normal_applied * normal_pull_factor,
+                v2_uv_applied + normal_applied * normal_pull_factor,
                 v2_uv_applied,
                 20,
             );
