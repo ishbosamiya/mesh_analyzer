@@ -1,5 +1,6 @@
 pub mod blender_mesh_io;
 pub mod config;
+pub mod curve;
 pub mod draw_ui;
 pub mod prelude;
 pub mod util;

@@ -2,9 +2,10 @@ use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
 
+use mesh_analyzer::curve::{CubicBezierCurve, CubicBezierCurveDrawData};
 use quick_renderer::camera::WindowCamera;
 use quick_renderer::drawable::Drawable;
-use quick_renderer::gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode};
+use quick_renderer::gpu_immediate::GPUImmediate;
 use quick_renderer::mesh::simple::Mesh;
 use quick_renderer::mesh::MeshDrawData;
 use quick_renderer::shader;
@@ -12,39 +13,6 @@ use quick_renderer::{egui, egui_glfw, gl, glfw, glm};
 
 use mesh_analyzer::config::Config;
 use mesh_analyzer::prelude::*;
-
-struct Curve {
-    p0: glm::DVec3,
-    p1: glm::DVec3,
-    p2: glm::DVec3,
-    p3: glm::DVec3,
-    num_steps: usize,
-}
-
-impl Default for Curve {
-    fn default() -> Self {
-        Self {
-            p0: Default::default(),
-            p1: Default::default(),
-            p2: Default::default(),
-            p3: Default::default(),
-            num_steps: 2,
-        }
-    }
-}
-
-fn cubic_bezier(
-    p0: &glm::DVec3,
-    p1: &glm::DVec3,
-    p2: &glm::DVec3,
-    p3: &glm::DVec3,
-    t: f64,
-) -> glm::DVec3 {
-    (1.0 - t).powi(3) * p0
-        + 3.0 * (1.0 - t).powi(2) * t * p1
-        + 3.0 * (1.0 - t) * t.powi(2) * p2
-        + t.powi(3) * p3
-}
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -130,7 +98,7 @@ fn main() {
 
     let mut config = Config::default();
 
-    let mut curve = Curve::default();
+    let mut curve = CubicBezierCurve::default();
 
     while !window.should_close() {
         glfw.poll_events();
@@ -180,41 +148,12 @@ fn main() {
             mesh.draw(&mut MeshDrawData::new(&mut imm, &directional_light_shader))
                 .unwrap();
 
-            {
-                let format = imm.get_cleared_vertex_format();
-                let pos_attr = format.add_attribute(
-                    "in_pos\0".to_string(),
-                    GPUVertCompType::F32,
-                    3,
-                    GPUVertFetchMode::Float,
-                );
-                let color_attr = format.add_attribute(
-                    "in_color\0".to_string(),
-                    GPUVertCompType::F32,
-                    4,
-                    GPUVertFetchMode::Float,
-                );
-
-                smooth_color_3d_shader.use_shader();
-
-                imm.begin(
-                    GPUPrimType::LineStrip,
-                    curve.num_steps,
-                    &smooth_color_3d_shader,
-                );
-
-                (0..curve.num_steps).for_each(|t| {
-                    let t = t as f64 * 1.0 / (curve.num_steps - 1) as f64;
-                    let point = cubic_bezier(&curve.p0, &curve.p1, &curve.p2, &curve.p3, t);
-
-                    let point: glm::Vec3 = glm::convert(point);
-
-                    imm.attr_4f(color_attr, 0.1, 0.53, 0.8, 1.0);
-                    imm.vertex_3f(pos_attr, point[0], point[1], point[2]);
-                });
-
-                imm.end();
-            }
+            curve
+                .draw(&mut CubicBezierCurveDrawData::new(
+                    &mut imm,
+                    glm::vec4(0.1, 0.3, 0.8, 1.0),
+                ))
+                .unwrap();
         }
 
         // GUI starts
