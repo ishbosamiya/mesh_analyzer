@@ -144,6 +144,8 @@ fn main() {
             directional_light_shader.use_shader();
             mesh.draw(&mut MeshDrawData::new(&mut imm, &directional_light_shader))
                 .unwrap();
+
+            mesh.visualize_config(&config, &mut imm);
         }
 
         // GUI starts

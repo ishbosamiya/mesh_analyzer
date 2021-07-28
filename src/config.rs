@@ -1,6 +1,6 @@
 use std::{fmt::Display, marker::PhantomData};
 
-use quick_renderer::{egui, mesh};
+use quick_renderer::{egui, glm, mesh};
 
 use crate::draw_ui::DrawUI;
 
@@ -35,6 +35,9 @@ impl Display for Element {
 pub struct Config<END, EVD, EED, EFD> {
     element: Element,
     element_index: usize,
+
+    uv_plane_3d_model_matrix: glm::DMat4,
+
     mesh_node_extra_data_type: PhantomData<END>,
     mesh_vert_extra_data_type: PhantomData<EVD>,
     mesh_edge_extra_data_type: PhantomData<EED>,
@@ -46,6 +49,9 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
         Self {
             element: Element::Node,
             element_index: 0,
+
+            uv_plane_3d_model_matrix: glm::identity(),
+
             mesh_node_extra_data_type: PhantomData,
             mesh_vert_extra_data_type: PhantomData,
             mesh_edge_extra_data_type: PhantomData,
@@ -77,7 +83,22 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
         };
         ui.add(
             egui::Slider::new(&mut self.element_index, 0..=(num_elements - 1))
+                .clamp_to_range(true)
                 .text("Element Index"),
         );
+    }
+}
+
+impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
+    pub fn get_element(&self) -> Element {
+        self.element
+    }
+
+    pub fn get_element_index(&self) -> usize {
+        self.element_index
+    }
+
+    pub fn get_uv_plane_3d_model_matrix(&self) -> &glm::DMat4 {
+        &self.uv_plane_3d_model_matrix
     }
 }

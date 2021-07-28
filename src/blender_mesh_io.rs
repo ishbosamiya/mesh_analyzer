@@ -3,7 +3,14 @@ use serde::Deserialize;
 
 use std::path::Path;
 
-use quick_renderer::mesh;
+use quick_renderer::drawable::Drawable;
+use quick_renderer::gpu_immediate::GPUImmediate;
+use quick_renderer::{glm, mesh};
+
+use crate::{
+    config::Config,
+    curve::{CubicBezierCurve, CubicBezierCurveDrawData},
+};
 
 mod io_structs {
     use std::collections::HashMap;
@@ -275,7 +282,7 @@ mod io_structs {
     }
 }
 
-pub trait MeshExtension<'de> {
+pub trait MeshExtension<'de, END, EVD, EED, EFD> {
     type Error;
 
     fn read_file<P: AsRef<Path>>(path: P) -> Result<Self, Self::Error>
@@ -284,6 +291,8 @@ pub trait MeshExtension<'de> {
     fn read_msgpack<P: AsRef<Path>>(path: P) -> Result<Self, Self::Error>
     where
         Self: Sized;
+
+    fn visualize_config(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate);
 }
 
 impl<
@@ -292,7 +301,7 @@ impl<
         EVD: serde::Deserialize<'de> + std::fmt::Debug,
         EED: serde::Deserialize<'de> + std::fmt::Debug,
         EFD: serde::Deserialize<'de> + std::fmt::Debug,
-    > MeshExtension<'de> for mesh::Mesh<END, EVD, EED, EFD>
+    > MeshExtension<'de, END, EVD, EED, EFD> for mesh::Mesh<END, EVD, EED, EFD>
 {
     type Error = ();
 
@@ -316,6 +325,75 @@ impl<
         let mesh: Self = meshio.into();
 
         Ok(mesh)
+    }
+
+    fn visualize_config(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate) {
+        match config.get_element() {
+            crate::config::Element::Node => {
+                // TODO(ish): handle showing which verts couldn't be
+                // visualized
+                self.visualize_node(config, imm);
+            }
+            crate::config::Element::Vert => todo!(),
+            crate::config::Element::Edge => todo!(),
+            crate::config::Element::Face => todo!(),
+        }
+    }
+}
+
+trait MeshExtensionPrivate<END, EVD, EED, EFD> {
+    /// Tries to visualize all the links between the node and verts
+    /// that refer to it.
+    ///
+    /// It returns back all the verts that cannot be visualized.
+    fn visualize_node(
+        &self,
+        config: &Config<END, EVD, EED, EFD>,
+        imm: &mut GPUImmediate,
+    ) -> Vec<mesh::VertIndex>;
+}
+
+impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
+    for mesh::Mesh<END, EVD, EED, EFD>
+{
+    fn visualize_node(
+        &self,
+        config: &Config<END, EVD, EED, EFD>,
+        imm: &mut GPUImmediate,
+    ) -> Vec<mesh::VertIndex> {
+        let mut no_uv_verts = Vec::new();
+        let node = self
+            .get_nodes()
+            .get_unknown_gen(config.get_element_index())
+            .unwrap()
+            .0;
+        node.get_verts().iter().for_each(|vert_index| {
+            let vert = self.get_vert(*vert_index).unwrap();
+            match vert.uv {
+                Some(uv) => {
+                    let uv_pos: glm::DVec3 = config
+                        .get_uv_plane_3d_model_matrix()
+                        .transform_vector(&glm::vec2_to_vec3(&uv));
+
+                    let curve = CubicBezierCurve::new(
+                        node.pos,
+                        node.pos + node.normal.unwrap(),
+                        uv_pos,
+                        uv_pos,
+                        20,
+                    );
+
+                    curve
+                        .draw(&mut CubicBezierCurveDrawData::new(
+                            imm,
+                            glm::vec4(0.1, 0.4, 0.6, 1.0),
+                        ))
+                        .unwrap();
+                }
+                None => no_uv_verts.push(*vert_index),
+            }
+        });
+        no_uv_verts
     }
 }
 
