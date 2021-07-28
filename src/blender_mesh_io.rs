@@ -410,11 +410,12 @@ impl<
 
     fn visualize_config(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate) {
         let uv_plane_3d_model_matrix = config.get_uv_plane_3d_model_matrix();
+        let mesh_model_matrix = config.get_mesh_transform().get_matrix();
         match config.get_element() {
             crate::config::Element::Node => {
                 // TODO(ish): handle showing which verts couldn't be
                 // visualized
-                self.visualize_node(config, &uv_plane_3d_model_matrix, imm);
+                self.visualize_node(config, &uv_plane_3d_model_matrix, &mesh_model_matrix, imm);
             }
             crate::config::Element::Vert => todo!(),
             crate::config::Element::Edge => todo!(),
@@ -432,6 +433,7 @@ trait MeshExtensionPrivate<END, EVD, EED, EFD> {
         &self,
         config: &Config<END, EVD, EED, EFD>,
         uv_plane_3d_model_matrix: &glm::DMat4,
+        mesh_model_matrix: &glm::DMat4,
         imm: &mut GPUImmediate,
     ) -> Vec<mesh::VertIndex>;
 }
@@ -443,6 +445,7 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
         &self,
         config: &Config<END, EVD, EED, EFD>,
         uv_plane_3d_model_matrix: &glm::DMat4,
+        mesh_model_matrix: &glm::DMat4,
         imm: &mut GPUImmediate,
     ) -> Vec<mesh::VertIndex> {
         let mut no_uv_verts = Vec::new();
@@ -459,9 +462,15 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
                         &(uv_plane_3d_model_matrix * math::append_one(&glm::vec2_to_vec3(&uv))),
                     );
 
+                    let node_pos_applied =
+                        glm::vec4_to_vec3(&(mesh_model_matrix * math::append_one(&node.pos)));
+                    let node_normal_applied = glm::vec4_to_vec3(
+                        &(mesh_model_matrix * math::append_one(&node.normal.unwrap())),
+                    );
+
                     let curve = CubicBezierCurve::new(
-                        node.pos,
-                        node.pos + node.normal.unwrap(),
+                        node_pos_applied,
+                        node_pos_applied + node_normal_applied,
                         uv_pos,
                         uv_pos,
                         20,
