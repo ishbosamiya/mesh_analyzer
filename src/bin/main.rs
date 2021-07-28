@@ -1,14 +1,10 @@
 use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
-use lyon::lyon_tessellation::geometry_builder::simple_builder;
-use lyon::lyon_tessellation::{StrokeOptions, StrokeTessellator, VertexBuffers};
-use lyon::math::{point, Point};
-use lyon::path::Path;
 
 use quick_renderer::camera::WindowCamera;
 use quick_renderer::drawable::Drawable;
-use quick_renderer::gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode};
+use quick_renderer::gpu_immediate::GPUImmediate;
 use quick_renderer::mesh::simple::Mesh;
 use quick_renderer::mesh::MeshDrawData;
 use quick_renderer::shader;
@@ -81,57 +77,15 @@ fn main() {
     let directional_light_shader = shader::builtins::get_directional_light_shader()
         .as_ref()
         .unwrap();
-
-    let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
-        .as_ref()
-        .unwrap();
-
     println!(
         "directional_light: uniforms: {:?} attributes: {:?}",
         directional_light_shader.get_uniforms(),
         directional_light_shader.get_attributes(),
     );
-    println!(
-        "smooth_color_3d: uniforms: {:?} attributes: {:?}",
-        smooth_color_3d_shader.get_uniforms(),
-        smooth_color_3d_shader.get_attributes(),
-    );
 
     let mut last_cursor = window.get_cursor_pos();
 
     let mut config = Config::default();
-
-    let mut path_builder = Path::builder();
-    path_builder.begin(point(1.5, 0.0));
-    path_builder.cubic_bezier_to(point(1.5, 1.0), point(2.5, 0.0), point(1.5, 1.0));
-    path_builder.end(false);
-    let path = path_builder.build();
-    let mut tessellator = StrokeTessellator::new();
-    let mut point_geometry: VertexBuffers<Point, u16> = VertexBuffers::new();
-    let mut stroke_options = StrokeOptions::default();
-    stroke_options.line_width = 0.008;
-    stroke_options.tolerance = 0.005;
-    tessellator
-        .tessellate_path(
-            &path,
-            &stroke_options,
-            &mut simple_builder(&mut point_geometry),
-        )
-        .unwrap();
-
-    let mut geometry: VertexBuffers<glm::Vec3, u32> = VertexBuffers::new();
-    geometry.indices = point_geometry
-        .indices
-        .drain(..)
-        .map(|index| index.into())
-        .collect();
-    geometry.vertices = point_geometry
-        .vertices
-        .drain(..)
-        .map(|point| glm::vec3(point.x, point.y, 0.0))
-        .collect();
-
-    assert!(geometry.indices.len() % 3 == 0);
 
     while !window.should_close() {
         glfw.poll_events();
@@ -148,31 +102,21 @@ fn main() {
 
         // Shader stuff
         {
-            let projection_matrix = glm::convert(camera.get_projection_matrix(&window));
-            let view_matrix = glm::convert(camera.get_view_matrix());
-            {
-                directional_light_shader.use_shader();
-                directional_light_shader.set_mat4("projection\0", &projection_matrix);
-                directional_light_shader.set_mat4("view\0", &view_matrix);
-                directional_light_shader.set_mat4("model\0", &glm::identity());
-                directional_light_shader
-                    .set_vec3("viewPos\0", &glm::convert(camera.get_position()));
-                directional_light_shader.set_vec3("material.color\0", &glm::vec3(0.3, 0.2, 0.7));
-                directional_light_shader.set_vec3("material.specular\0", &glm::vec3(0.3, 0.3, 0.3));
-                directional_light_shader.set_float("material.shininess\0", 4.0);
-                directional_light_shader
-                    .set_vec3("light.direction\0", &glm::vec3(-0.7, -1.0, -0.7));
-                directional_light_shader.set_vec3("light.ambient\0", &glm::vec3(0.3, 0.3, 0.3));
-                directional_light_shader.set_vec3("light.diffuse\0", &glm::vec3(1.0, 1.0, 1.0));
-                directional_light_shader.set_vec3("light.specular\0", &glm::vec3(1.0, 1.0, 1.0));
-            }
-
-            {
-                smooth_color_3d_shader.use_shader();
-                smooth_color_3d_shader.set_mat4("projection\0", &projection_matrix);
-                smooth_color_3d_shader.set_mat4("view\0", &view_matrix);
-                smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
-            }
+            directional_light_shader.use_shader();
+            directional_light_shader.set_mat4(
+                "projection\0",
+                &glm::convert(camera.get_projection_matrix(&window)),
+            );
+            directional_light_shader.set_mat4("view\0", &glm::convert(camera.get_view_matrix()));
+            directional_light_shader.set_mat4("model\0", &glm::identity());
+            directional_light_shader.set_vec3("viewPos\0", &glm::convert(camera.get_position()));
+            directional_light_shader.set_vec3("material.color\0", &glm::vec3(0.3, 0.2, 0.7));
+            directional_light_shader.set_vec3("material.specular\0", &glm::vec3(0.3, 0.3, 0.3));
+            directional_light_shader.set_float("material.shininess\0", 4.0);
+            directional_light_shader.set_vec3("light.direction\0", &glm::vec3(-0.7, -1.0, -0.7));
+            directional_light_shader.set_vec3("light.ambient\0", &glm::vec3(0.3, 0.3, 0.3));
+            directional_light_shader.set_vec3("light.diffuse\0", &glm::vec3(1.0, 1.0, 1.0));
+            directional_light_shader.set_vec3("light.specular\0", &glm::vec3(1.0, 1.0, 1.0));
         }
 
         // Draw mesh
@@ -180,36 +124,6 @@ fn main() {
             directional_light_shader.use_shader();
             mesh.draw(&mut MeshDrawData::new(&mut imm, &directional_light_shader))
                 .unwrap();
-            {
-                let format = imm.get_cleared_vertex_format();
-                let pos_attr = format.add_attribute(
-                    "in_pos\0".to_string(),
-                    GPUVertCompType::F32,
-                    3,
-                    GPUVertFetchMode::Float,
-                );
-                let color_attr = format.add_attribute(
-                    "in_color\0".to_string(),
-                    GPUVertCompType::F32,
-                    4,
-                    GPUVertFetchMode::Float,
-                );
-
-                smooth_color_3d_shader.use_shader();
-                imm.begin(
-                    GPUPrimType::Tris,
-                    geometry.indices.len(),
-                    &smooth_color_3d_shader,
-                );
-
-                geometry.indices.iter().for_each(|index| {
-                    let pos: glm::Vec3 = geometry.vertices[*index as usize];
-                    imm.attr_4f(color_attr, 0.1, 0.53, 0.8, 1.0);
-                    imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
-                });
-
-                imm.end();
-            }
         }
 
         // GUI starts
