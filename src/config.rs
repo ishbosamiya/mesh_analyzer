@@ -43,6 +43,8 @@ pub struct Config<END, EVD, EED, EFD> {
     element: Element,
     element_index: usize,
 
+    mesh_transform: math::Transform,
+
     uv_plane_3d_transform: math::Transform,
     uv_map_color: glm::DVec4,
 
@@ -57,6 +59,8 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
         Self {
             element: Element::Node,
             element_index: 0,
+
+            mesh_transform: Default::default(),
 
             uv_plane_3d_transform: Default::default(),
             uv_map_color: glm::vec4(1.0, 1.0, 1.0, 1.0),
@@ -95,10 +99,19 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                 .clamp_to_range(true)
                 .text("Element Index"),
         );
+
+        ui.separator();
+
         ui.label("UV Plane Transform");
         ui.add(ui_widgets::Transform::new(&mut self.uv_plane_3d_transform));
-
         color_edit_button_dvec4(ui, "UV Map Color", &mut self.uv_map_color);
+
+        ui.separator();
+
+        ui.label("Mesh Transform");
+        ui.add(ui_widgets::Transform::new(&mut self.mesh_transform));
+
+        ui.separator();
     }
 }
 
@@ -121,6 +134,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
     pub fn get_uv_map_color(&self) -> glm::DVec4 {
         self.uv_map_color
+    }
+
+    pub fn get_mesh_transform(&self) -> &Transform {
+        &self.mesh_transform
     }
 }
 

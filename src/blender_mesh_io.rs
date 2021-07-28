@@ -315,6 +315,7 @@ pub trait MeshExtension<'de, END, EVD, EED, EFD> {
 
     fn draw_uv(&self, draw_data: &mut MeshUVDrawData);
 
+    /// Visualizes the configuration given
     fn visualize_config(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate);
 }
 
