@@ -2,7 +2,6 @@ use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
 
-use mesh_analyzer::curve::{CubicBezierCurve, CubicBezierCurveDrawData};
 use quick_renderer::camera::WindowCamera;
 use quick_renderer::drawable::Drawable;
 use quick_renderer::gpu_immediate::GPUImmediate;
@@ -98,8 +97,6 @@ fn main() {
 
     let mut config = Config::default();
 
-    let mut curve = CubicBezierCurve::default();
-
     while !window.should_close() {
         glfw.poll_events();
 
@@ -147,13 +144,6 @@ fn main() {
             directional_light_shader.use_shader();
             mesh.draw(&mut MeshDrawData::new(&mut imm, &directional_light_shader))
                 .unwrap();
-
-            curve
-                .draw(&mut CubicBezierCurveDrawData::new(
-                    &mut imm,
-                    glm::vec4(0.1, 0.3, 0.8, 1.0),
-                ))
-                .unwrap();
         }
 
         // GUI starts
@@ -164,36 +154,6 @@ fn main() {
                 .show(egui.get_egui_ctx(), |ui| {
                     config.draw_ui(&mesh, ui);
                     config.draw_ui_edit(&mesh, ui);
-
-                    let mut draw_point_ui = |text: &str, point: &mut glm::DVec3| {
-                        ui.label(text);
-                        ui.add(
-                            egui::Slider::new(&mut point[0], -10.0..=10.0)
-                                .max_decimals(2)
-                                .text("x"),
-                        );
-                        ui.add(
-                            egui::Slider::new(&mut point[1], -10.0..=10.0)
-                                .max_decimals(2)
-                                .text("y"),
-                        );
-                        ui.add(
-                            egui::Slider::new(&mut point[2], -10.0..=10.0)
-                                .max_decimals(2)
-                                .text("z"),
-                        );
-                    };
-
-                    draw_point_ui("Point 0", &mut curve.p0);
-                    draw_point_ui("Point 1", &mut curve.p1);
-                    draw_point_ui("Point 2", &mut curve.p2);
-                    draw_point_ui("Point 3", &mut curve.p3);
-                    ui.add(
-                        egui::Slider::new(&mut curve.num_steps, 2..=1000)
-                            .logarithmic(true)
-                            .clamp_to_range(true)
-                            .text("Num Steps"),
-                    );
                 });
             let (width, height) = window.get_framebuffer_size();
             let _output = egui.end_frame(glm::vec2(width as _, height as _));
