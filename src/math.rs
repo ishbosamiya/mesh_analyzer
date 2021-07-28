@@ -35,8 +35,18 @@ impl Transform {
             ),
             self.rotation[2],
         );
-        let scaled_mat = glm::scale(&rotated_mat, &self.scale);
 
-        scaled_mat
+        glm::scale(&rotated_mat, &self.scale)
     }
+}
+
+pub fn append_one<T: glm::Scalar + num_traits::identities::One>(
+    vec: &glm::TVec3<T>,
+) -> glm::TVec4<T> {
+    glm::vec4(
+        vec[0].inlined_clone(),
+        vec[1].inlined_clone(),
+        vec[2].inlined_clone(),
+        glm::one(),
+    )
 }
