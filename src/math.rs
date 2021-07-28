@@ -27,15 +27,16 @@ impl Transform {
     }
 
     pub fn get_matrix(&self) -> glm::DMat4 {
-        let scaled_mat = glm::scale(&glm::identity(), &self.scale);
+        let translated_mat = glm::translate(&glm::identity(), &self.location);
         let rotated_mat = glm::rotate_z(
             &glm::rotate_y(
-                &glm::rotate_x(&scaled_mat, self.rotation[0]),
+                &glm::rotate_x(&translated_mat, self.rotation[0]),
                 self.rotation[1],
             ),
             self.rotation[2],
         );
+        let scaled_mat = glm::scale(&rotated_mat, &self.scale);
 
-        glm::translate(&rotated_mat, &self.location)
+        scaled_mat
     }
 }
