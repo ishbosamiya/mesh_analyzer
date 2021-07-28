@@ -155,7 +155,7 @@ fn main() {
             mesh.draw_uv(&mut MeshUVDrawData::new(
                 &mut imm,
                 &glm::convert(config.get_uv_plane_3d_model_matrix()),
-                &glm::vec4(1.0, 1.0, 1.0, 1.0),
+                &glm::convert(config.get_uv_map_color()),
             ));
 
             smooth_color_3d_shader.use_shader();

@@ -1,6 +1,9 @@
 use std::{fmt::Display, marker::PhantomData};
 
-use quick_renderer::{egui, glm, mesh};
+use quick_renderer::{
+    egui::{self, Color32},
+    glm, mesh,
+};
 
 use crate::{
     draw_ui::DrawUI,
@@ -41,6 +44,7 @@ pub struct Config<END, EVD, EED, EFD> {
     element_index: usize,
 
     uv_plane_3d_transform: math::Transform,
+    uv_map_color: glm::DVec4,
 
     mesh_node_extra_data_type: PhantomData<END>,
     mesh_vert_extra_data_type: PhantomData<EVD>,
@@ -55,6 +59,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             element_index: 0,
 
             uv_plane_3d_transform: Default::default(),
+            uv_map_color: glm::vec4(1.0, 1.0, 1.0, 1.0),
 
             mesh_node_extra_data_type: PhantomData,
             mesh_vert_extra_data_type: PhantomData,
@@ -90,7 +95,10 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                 .clamp_to_range(true)
                 .text("Element Index"),
         );
+        ui.label("UV Plane Transform");
         ui.add(ui_widgets::Transform::new(&mut self.uv_plane_3d_transform));
+
+        color_edit_button_dvec4(ui, "UV Map Color", &mut self.uv_map_color);
     }
 }
 
@@ -110,4 +118,31 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
     pub fn get_uv_plane_3d_model_matrix(&self) -> glm::DMat4 {
         self.uv_plane_3d_transform.get_matrix()
     }
+
+    pub fn get_uv_map_color(&self) -> glm::DVec4 {
+        self.uv_map_color
+    }
+}
+
+fn color_edit_button_dvec4(ui: &mut egui::Ui, text: &str, color: &mut glm::DVec4) {
+    ui.horizontal(|ui| {
+        ui.label(text);
+        let mut color_egui = Color32::from_rgba_premultiplied(
+            (color[0] * 255.0) as _,
+            (color[1] * 255.0) as _,
+            (color[2] * 255.0) as _,
+            (color[3] * 255.0) as _,
+        );
+        egui::color_picker::color_edit_button_srgba(
+            ui,
+            &mut color_egui,
+            egui::color_picker::Alpha::BlendOrAdditive,
+        );
+        *color = glm::vec4(
+            color_egui.r() as f64 / 255.0,
+            color_egui.g() as f64 / 255.0,
+            color_egui.b() as f64 / 255.0,
+            color_egui.a() as f64 / 255.0,
+        );
+    });
 }
