@@ -3,6 +3,7 @@ use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
 
 use mesh_analyzer::blender_mesh_io::MeshUVDrawData;
+use mesh_analyzer::curve::{CubicPointNormalTriangle, CubicPointNormalTriangleDrawData};
 use quick_renderer::camera::WindowCamera;
 use quick_renderer::drawable::Drawable;
 use quick_renderer::gpu_immediate::GPUImmediate;
@@ -12,7 +13,7 @@ use quick_renderer::shader;
 use quick_renderer::{egui, egui_glfw, gl, glfw, glm};
 
 use mesh_analyzer::config::Config;
-use mesh_analyzer::prelude::*;
+use mesh_analyzer::{prelude::*, ui_widgets};
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -98,6 +99,8 @@ fn main() {
 
     let mut config = Config::default();
 
+    let mut pn_triangle = CubicPointNormalTriangle::default();
+
     while !window.should_close() {
         glfw.poll_events();
 
@@ -160,6 +163,13 @@ fn main() {
             smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
 
             mesh.visualize_config(&config, &mut imm);
+
+            pn_triangle
+                .draw(&mut CubicPointNormalTriangleDrawData::new(
+                    &mut imm,
+                    glm::vec4(0.1, 0.8, 0.8, 0.7),
+                ))
+                .unwrap();
         }
 
         // GUI starts
@@ -168,8 +178,23 @@ fn main() {
             egui::SidePanel::left("Left Side Panel")
                 .resizable(true)
                 .show(egui.get_egui_ctx(), |ui| {
-                    config.draw_ui(&mesh, ui);
-                    config.draw_ui_edit(&mesh, ui);
+                    egui::ScrollArea::auto_sized().show(ui, |ui| {
+                        config.draw_ui(&mesh, ui);
+                        config.draw_ui_edit(&mesh, ui);
+
+                        ui.label("p1");
+                        ui.add(ui_widgets::Vec3::new(&mut pn_triangle.p1));
+                        ui.label("p2");
+                        ui.add(ui_widgets::Vec3::new(&mut pn_triangle.p2));
+                        ui.label("p3");
+                        ui.add(ui_widgets::Vec3::new(&mut pn_triangle.p3));
+                        ui.label("n1");
+                        ui.add(ui_widgets::Vec3::new(&mut pn_triangle.n1));
+                        ui.label("n2");
+                        ui.add(ui_widgets::Vec3::new(&mut pn_triangle.n2));
+                        ui.label("n3");
+                        ui.add(ui_widgets::Vec3::new(&mut pn_triangle.n3));
+                    });
                 });
             let (width, height) = window.get_framebuffer_size();
             let _output = egui.end_frame(glm::vec2(width as _, height as _));
