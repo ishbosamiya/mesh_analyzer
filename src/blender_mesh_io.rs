@@ -283,6 +283,26 @@ mod io_structs {
     }
 }
 
+pub struct MeshUVDrawData<'a> {
+    imm: &'a mut GPUImmediate,
+    uv_plane_3d_model_matrix: &'a glm::Mat4,
+    color: &'a glm::Vec4,
+}
+
+impl<'a> MeshUVDrawData<'a> {
+    pub fn new(
+        imm: &'a mut GPUImmediate,
+        uv_plane_3d_model_matrix: &'a glm::Mat4,
+        color: &'a glm::Vec4,
+    ) -> Self {
+        Self {
+            imm,
+            uv_plane_3d_model_matrix,
+            color,
+        }
+    }
+}
+
 pub trait MeshExtension<'de, END, EVD, EED, EFD> {
     type Error;
 
@@ -293,7 +313,7 @@ pub trait MeshExtension<'de, END, EVD, EED, EFD> {
     where
         Self: Sized;
 
-    fn draw_uv(&self, uv_plane_3d_model_matrix: &glm::Mat4, imm: &mut GPUImmediate);
+    fn draw_uv(&self, draw_data: &mut MeshUVDrawData);
 
     fn visualize_config(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate);
 }
@@ -330,8 +350,10 @@ impl<
         Ok(mesh)
     }
 
-    fn draw_uv(&self, uv_plane_3d_model_matrix: &glm::Mat4, imm: &mut GPUImmediate) {
-        let color = glm::vec4(0.42, 0.55, 0.7, 1.0);
+    fn draw_uv(&self, draw_data: &mut MeshUVDrawData) {
+        let imm = &mut draw_data.imm;
+        let uv_plane_3d_model_matrix = &draw_data.uv_plane_3d_model_matrix;
+        let color = &draw_data.color;
 
         let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
             .as_ref()

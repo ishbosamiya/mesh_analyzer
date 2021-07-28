@@ -2,6 +2,7 @@ use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
 
+use mesh_analyzer::blender_mesh_io::MeshUVDrawData;
 use quick_renderer::camera::WindowCamera;
 use quick_renderer::drawable::Drawable;
 use quick_renderer::gpu_immediate::GPUImmediate;
@@ -151,10 +152,11 @@ fn main() {
             mesh.draw(&mut MeshDrawData::new(&mut imm, &directional_light_shader))
                 .unwrap();
 
-            mesh.draw_uv(
-                &glm::convert(config.get_uv_plane_3d_model_matrix()),
+            mesh.draw_uv(&mut MeshUVDrawData::new(
                 &mut imm,
-            );
+                &glm::convert(config.get_uv_plane_3d_model_matrix()),
+                &glm::vec4(1.0, 1.0, 1.0, 1.0),
+            ));
 
             smooth_color_3d_shader.use_shader();
             smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
