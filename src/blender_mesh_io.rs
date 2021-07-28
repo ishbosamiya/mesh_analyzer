@@ -463,6 +463,9 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
         mesh_model_matrix: &glm::DMat4,
         imm: &mut GPUImmediate,
     ) -> Vec<mesh::VertIndex> {
+        let color = glm::vec4(0.1, 0.8, 0.8, 1.0);
+        let normal_pull_factor = 0.2;
+
         let mut no_uv_verts = Vec::new();
         let node = self
             .get_nodes()
@@ -474,6 +477,9 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
             match vert.uv {
                 Some(uv) => {
                     let uv_pos = apply_model_matrix_vec2(&uv, uv_plane_3d_model_matrix);
+                    let initial_uv_plane_normal = glm::vec3(0.0, 0.0, 1.0);
+                    let uv_plane_normal_applied =
+                        apply_model_matrix_vec3(&initial_uv_plane_normal, uv_plane_3d_model_matrix);
 
                     let node_pos_applied = apply_model_matrix_vec3(&node.pos, mesh_model_matrix);
                     let node_normal_applied =
@@ -481,17 +487,14 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
 
                     let curve = CubicBezierCurve::new(
                         node_pos_applied,
-                        node_pos_applied + node_normal_applied,
-                        uv_pos,
+                        node_pos_applied + node_normal_applied * normal_pull_factor,
+                        uv_pos + uv_plane_normal_applied * normal_pull_factor,
                         uv_pos,
                         20,
                     );
 
                     curve
-                        .draw(&mut CubicBezierCurveDrawData::new(
-                            imm,
-                            glm::vec4(0.1, 0.4, 0.6, 1.0),
-                        ))
+                        .draw(&mut CubicBezierCurveDrawData::new(imm, color))
                         .unwrap();
                 }
                 None => no_uv_verts.push(*vert_index),
