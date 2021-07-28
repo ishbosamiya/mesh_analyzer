@@ -33,3 +33,22 @@ impl egui::Widget for Transform<'_> {
         response_location.union(response_rotation.union(response_scale))
     }
 }
+
+pub struct Vec3<'a> {
+    vec: &'a mut glm::DVec3,
+}
+
+impl<'a> Vec3<'a> {
+    pub fn new(vec: &'a mut glm::DVec3) -> Self {
+        Self { vec }
+    }
+}
+
+impl egui::Widget for Vec3<'_> {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let response_val_0 = ui.add(egui::Slider::new(&mut self.vec[0], -5.0..=5.0));
+        let response_val_1 = ui.add(egui::Slider::new(&mut self.vec[1], -5.0..=5.0));
+        let response_val_2 = ui.add(egui::Slider::new(&mut self.vec[2], -5.0..=5.0));
+        response_val_0.union(response_val_1.union(response_val_2))
+    }
+}
