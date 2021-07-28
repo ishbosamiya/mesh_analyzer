@@ -4,6 +4,7 @@ pub mod curve;
 pub mod draw_ui;
 pub mod math;
 pub mod prelude;
+pub mod ui_widgets;
 pub mod util;
 
 extern crate lazy_static;
