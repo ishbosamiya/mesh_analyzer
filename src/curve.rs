@@ -390,10 +390,10 @@ impl Drawable<PointNormalTriangleDrawData<'_>, Error> for PointNormalTriangle {
         let mut indices = Vec::new();
 
         // generate the verts
-        (0..self.num_steps).for_each(|i| {
-            let u = i as f64 / (self.num_steps - 1) as f64;
-            (0..self.num_steps).for_each(|j| {
-                let v = j as f64 / (self.num_steps - 1) as f64;
+        (0..=self.num_steps).for_each(|i| {
+            let u = i as f64 / (self.num_steps) as f64;
+            (0..=self.num_steps).for_each(|j| {
+                let v = j as f64 / (self.num_steps) as f64;
 
                 let pos = control_points.get_pos_at(u, v);
                 let normal = control_points.get_normal_at(u, v);
@@ -406,47 +406,48 @@ impl Drawable<PointNormalTriangleDrawData<'_>, Error> for PointNormalTriangle {
         });
 
         // generate the triangle indices
-        (0..self.num_steps - 1).for_each(|i| {
-            (0..self.num_steps - 1).for_each(|j| {
-                indices.push((self.num_steps) * j + i);
-                indices.push((self.num_steps) * (j + 1) + i);
-                indices.push((self.num_steps) * j + i + 1);
+        (0..self.num_steps).for_each(|i| {
+            (0..self.num_steps).for_each(|j| {
+                indices.push((self.num_steps + 1) * j + i);
+                indices.push((self.num_steps + 1) * (j + 1) + i);
+                indices.push((self.num_steps + 1) * j + i + 1);
 
-                indices.push((self.num_steps) * j + i + 1);
-                indices.push((self.num_steps) * (j + 1) + i);
-                indices.push((self.num_steps) * (j + 1) + i + 1);
+                indices.push((self.num_steps + 1) * j + i + 1);
+                indices.push((self.num_steps + 1) * (j + 1) + i);
+                indices.push((self.num_steps + 1) * (j + 1) + i + 1);
             });
         });
 
-        if indices.len() >= 3 {
-            imm.begin_at_most(GPUPrimType::Tris, indices.len(), &smooth_color_3d_shader);
+        assert!(!indices.is_empty());
+        assert!(indices.len() % 3 == 0);
 
-            for chunk in &indices.iter().chunks(3) {
-                let mut use_this = true;
+        imm.begin_at_most(GPUPrimType::Tris, indices.len(), &smooth_color_3d_shader);
 
-                let chunk: Vec<_> = chunk
-                    .map(|index| {
-                        let (u, v, _, _) = vertices[*index];
-                        if u + v > 1.0 {
-                            use_this = false;
-                            return usize::MAX;
-                        }
-                        *index
-                    })
-                    .collect();
+        for chunk in &indices.iter().chunks(3) {
+            let mut use_this = true;
 
-                if use_this {
-                    chunk.iter().for_each(|index| {
-                        let (_, _, pos, _) = vertices[*index];
+            let chunk: Vec<_> = chunk
+                .map(|index| {
+                    let (u, v, _, _) = vertices[*index];
+                    if u + v > 1.0 {
+                        use_this = false;
+                        return usize::MAX;
+                    }
+                    *index
+                })
+                .collect();
 
-                        imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-                        imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
-                    });
-                }
+            if use_this {
+                chunk.iter().for_each(|index| {
+                    let (_, _, pos, _) = vertices[*index];
+
+                    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                    imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+                });
             }
-
-            imm.end();
         }
+
+        imm.end();
 
         let normal_factor = extra_data.normal_factor;
 
