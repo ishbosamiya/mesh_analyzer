@@ -7,7 +7,7 @@ use quick_renderer::camera::WindowCamera;
 use quick_renderer::drawable::Drawable;
 use quick_renderer::gpu_immediate::GPUImmediate;
 use quick_renderer::mesh::simple::Mesh;
-use quick_renderer::mesh::MeshDrawData;
+use quick_renderer::mesh::{MeshDrawData, MeshUseShader};
 use quick_renderer::shader;
 use quick_renderer::{egui, egui_glfw, gl, glfw, glm};
 
@@ -144,12 +144,14 @@ fn main() {
         // Draw mesh
         {
             directional_light_shader.use_shader();
-
             let model = glm::convert(config.get_mesh_transform().get_matrix());
             directional_light_shader.set_mat4("model\0", &model);
-
-            mesh.draw(&mut MeshDrawData::new(&mut imm, &directional_light_shader))
-                .unwrap();
+            mesh.draw(&mut MeshDrawData::new(
+                &mut imm,
+                MeshUseShader::DirectionalLight,
+                None,
+            ))
+            .unwrap();
 
             mesh.draw_uv(&mut MeshUVDrawData::new(
                 &mut imm,
