@@ -309,11 +309,23 @@ impl CubicPointNormalTriangle {
 pub struct CubicPointNormalTriangleDrawData<'a> {
     imm: &'a mut GPUImmediate,
     color: glm::Vec4,
+    display_vertex_normals: bool,
+    normal_factor: f64,
 }
 
 impl<'a> CubicPointNormalTriangleDrawData<'a> {
-    pub fn new(imm: &'a mut GPUImmediate, color: glm::Vec4) -> Self {
-        Self { imm, color }
+    pub fn new(
+        imm: &'a mut GPUImmediate,
+        color: glm::Vec4,
+        display_vertex_normals: bool,
+        normal_factor: f64,
+    ) -> Self {
+        Self {
+            imm,
+            color,
+            display_vertex_normals,
+            normal_factor,
+        }
     }
 }
 
@@ -381,42 +393,44 @@ impl Drawable<CubicPointNormalTriangleDrawData<'_>, Error> for CubicPointNormalT
 
         imm.end();
 
-        imm.begin(
-            GPUPrimType::Lines,
-            triangles.len() * 3 * 2,
-            &smooth_color_3d_shader,
-        );
+        let normal_factor = extra_data.normal_factor;
 
-        let normal_factor = 0.1;
+        if extra_data.display_vertex_normals {
+            imm.begin(
+                GPUPrimType::Lines,
+                triangles.len() * 3 * 2,
+                &smooth_color_3d_shader,
+            );
 
-        triangles.iter().for_each(|triangle| {
-            let p1: glm::Vec3 = glm::convert(triangle.p1);
-            let p2: glm::Vec3 = glm::convert(triangle.p2);
-            let p3: glm::Vec3 = glm::convert(triangle.p3);
-            let p1_n1: glm::Vec3 = glm::convert(triangle.p1 + triangle.n1 * normal_factor);
-            let p2_n2: glm::Vec3 = glm::convert(triangle.p2 + triangle.n2 * normal_factor);
-            let p3_n3: glm::Vec3 = glm::convert(triangle.p3 + triangle.n3 * normal_factor);
+            triangles.iter().for_each(|triangle| {
+                let p1: glm::Vec3 = glm::convert(triangle.p1);
+                let p2: glm::Vec3 = glm::convert(triangle.p2);
+                let p3: glm::Vec3 = glm::convert(triangle.p3);
+                let p1_n1: glm::Vec3 = glm::convert(triangle.p1 + triangle.n1 * normal_factor);
+                let p2_n2: glm::Vec3 = glm::convert(triangle.p2 + triangle.n2 * normal_factor);
+                let p3_n3: glm::Vec3 = glm::convert(triangle.p3 + triangle.n3 * normal_factor);
 
-            imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-            imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
+                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
 
-            imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-            imm.vertex_3f(pos_attr, p1_n1[0], p1_n1[1], p1_n1[2]);
+                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                imm.vertex_3f(pos_attr, p1_n1[0], p1_n1[1], p1_n1[2]);
 
-            imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-            imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
+                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
 
-            imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-            imm.vertex_3f(pos_attr, p2_n2[0], p2_n2[1], p2_n2[2]);
+                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                imm.vertex_3f(pos_attr, p2_n2[0], p2_n2[1], p2_n2[2]);
 
-            imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-            imm.vertex_3f(pos_attr, p3[0], p3[1], p3[2]);
+                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                imm.vertex_3f(pos_attr, p3[0], p3[1], p3[2]);
 
-            imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-            imm.vertex_3f(pos_attr, p3_n3[0], p3_n3[1], p3_n3[2]);
-        });
+                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                imm.vertex_3f(pos_attr, p3_n3[0], p3_n3[1], p3_n3[2]);
+            });
 
-        imm.end();
+            imm.end();
+        }
 
         Ok(())
     }

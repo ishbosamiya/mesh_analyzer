@@ -100,6 +100,8 @@ fn main() {
     let mut config = Config::default();
 
     let mut pn_triangle = CubicPointNormalTriangle::default();
+    let mut pn_triangle_display_normals = false;
+    let mut pn_triangle_normal_factor = 0.1;
 
     while !window.should_close() {
         glfw.poll_events();
@@ -169,6 +171,8 @@ fn main() {
                 .draw(&mut CubicPointNormalTriangleDrawData::new(
                     &mut imm,
                     glm::vec4(0.1, 0.8, 0.8, 0.7),
+                    pn_triangle_display_normals,
+                    pn_triangle_normal_factor,
                 ))
                 .unwrap();
         }
@@ -183,6 +187,9 @@ fn main() {
                         config.draw_ui(&mesh, ui);
                         config.draw_ui_edit(&mesh, ui);
 
+                        ui.checkbox(&mut pn_triangle_display_normals, "Display Vertex Normals");
+                        ui.label("Normal Factor");
+                        ui.add(egui::Slider::new(&mut pn_triangle_normal_factor, 0.0..=1.0));
                         ui.label("Num Steps");
                         let mut num_steps = pn_triangle.get_num_steps();
                         let num_steps_resp =
