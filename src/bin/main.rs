@@ -172,6 +172,7 @@ fn main() {
                     glm::vec4(0.1, 0.8, 0.8, 0.7),
                     pn_triangle_display_normals,
                     pn_triangle_normal_factor,
+                    glm::vec4(0.8, 0.24, 0.2, 1.0),
                 ))
                 .unwrap();
         }
@@ -190,10 +191,7 @@ fn main() {
                         ui.label("Normal Factor");
                         ui.add(egui::Slider::new(&mut pn_triangle_normal_factor, 0.0..=1.0));
                         ui.label("Num Steps");
-                        ui.add(
-                            egui::Slider::new(&mut pn_triangle.num_steps, 1..=25)
-                                .clamp_to_range(true),
-                        );
+                        ui.add(egui::Slider::new(&mut pn_triangle.num_steps, 1..=25));
                         ui.label("p1");
                         ui.add(ui_widgets::Vec3::new(&mut pn_triangle.p1));
                         ui.label("p2");

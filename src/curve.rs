@@ -306,6 +306,7 @@ pub struct PointNormalTriangleDrawData<'a> {
     color: glm::Vec4,
     display_vertex_normals: bool,
     normal_factor: f64,
+    normals_color: glm::Vec4,
 }
 
 impl<'a> PointNormalTriangleDrawData<'a> {
@@ -314,12 +315,14 @@ impl<'a> PointNormalTriangleDrawData<'a> {
         color: glm::Vec4,
         display_vertex_normals: bool,
         normal_factor: f64,
+        normals_color: glm::Vec4,
     ) -> Self {
         Self {
             imm,
             color,
             display_vertex_normals,
             normal_factor,
+            normals_color,
         }
     }
 }
@@ -332,6 +335,7 @@ impl Drawable<PointNormalTriangleDrawData<'_>, Error> for PointNormalTriangle {
 
         let imm = &mut extra_data.imm;
         let color = &extra_data.color;
+        let normals_color = &extra_data.normals_color;
 
         let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
             .as_ref()
@@ -434,10 +438,22 @@ impl Drawable<PointNormalTriangleDrawData<'_>, Error> for PointNormalTriangle {
 
                 let pos_2: glm::Vec3 = pos + normal * normal_factor as f32;
 
-                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                imm.attr_4f(
+                    color_attr,
+                    normals_color[0],
+                    normals_color[1],
+                    normals_color[2],
+                    normals_color[3],
+                );
                 imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
 
-                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                imm.attr_4f(
+                    color_attr,
+                    normals_color[0],
+                    normals_color[1],
+                    normals_color[2],
+                    normals_color[3],
+                );
                 imm.vertex_3f(pos_attr, pos_2[0], pos_2[1], pos_2[2]);
             });
 
