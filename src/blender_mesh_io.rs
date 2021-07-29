@@ -418,7 +418,7 @@ impl<
                 self.visualize_node(config, &uv_plane_3d_model_matrix, &mesh_model_matrix, imm);
             }
             crate::config::Element::Vert => {
-                self.visualize_vert(config, &uv_plane_3d_model_matrix, &mesh_model_matrix, imm)
+                self.visualize_vert(config, &uv_plane_3d_model_matrix, &mesh_model_matrix, imm);
             }
             crate::config::Element::Edge => todo!(),
             crate::config::Element::Face => todo!(),
@@ -439,7 +439,7 @@ trait MeshExtensionPrivate<END, EVD, EED, EFD> {
         imm: &mut GPUImmediate,
     ) -> Vec<mesh::VertIndex>;
 
-    /// Tries to visualize all the links stored in the node
+    /// Tries to visualize all the links stored in the vert
     /// that refer to it.
     ///
     /// It returns back all the edges and node that cannot be visualized.
@@ -475,27 +475,16 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
         node.get_verts().iter().for_each(|vert_index| {
             let vert = self.get_vert(*vert_index).unwrap();
             match vert.uv {
-                Some(uv) => {
-                    let uv_pos = apply_model_matrix_vec2(&uv, uv_plane_3d_model_matrix);
-                    let initial_uv_plane_normal = glm::vec3(0.0, 0.0, 1.0);
-                    let uv_plane_normal_applied =
-                        apply_model_matrix_vec3(&initial_uv_plane_normal, uv_plane_3d_model_matrix);
-
-                    let node_pos_applied = apply_model_matrix_vec3(&node.pos, mesh_model_matrix);
-                    let node_normal_applied =
-                        apply_model_matrix_vec3(&node.normal.unwrap(), mesh_model_matrix);
-
-                    let curve = CubicBezierCurve::new(
-                        node_pos_applied,
-                        node_pos_applied + node_normal_applied * normal_pull_factor,
-                        uv_pos + uv_plane_normal_applied * normal_pull_factor,
-                        uv_pos,
-                        20,
+                Some(_) => {
+                    self.draw_fancy_node_vert_connect(
+                        node,
+                        vert,
+                        uv_plane_3d_model_matrix,
+                        mesh_model_matrix,
+                        imm,
+                        color,
+                        normal_pull_factor,
                     );
-
-                    curve
-                        .draw(&mut CubicBezierCurveDrawData::new(imm, color))
-                        .unwrap();
                 }
                 None => no_uv_verts.push(*vert_index),
             }
@@ -521,46 +510,114 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
 
         vert.get_edges().iter().for_each(|edge_index| {
             let edge = self.get_edge(*edge_index).unwrap();
-            let v1_index = edge.get_verts().unwrap().0;
-            let v2_index = edge.get_verts().unwrap().1;
 
-            let v1 = self.get_vert(v1_index).unwrap();
-            let v2 = self.get_vert(v2_index).unwrap();
-
-            let v1_uv = v1.uv.unwrap();
-            let v2_uv = v2.uv.unwrap();
-
-            let v1_uv_applied = apply_model_matrix_vec2(&v1_uv, uv_plane_3d_model_matrix);
-            let v2_uv_applied = apply_model_matrix_vec2(&v2_uv, uv_plane_3d_model_matrix);
-
-            let initial_normal = glm::vec3(0.0, 0.0, 1.0);
-            let normal_applied = apply_model_matrix_vec3(&initial_normal, uv_plane_3d_model_matrix);
-
-            let curve = CubicBezierCurve::new(
-                v1_uv_applied,
-                v1_uv_applied + normal_applied * normal_pull_factor,
-                v2_uv_applied + normal_applied * normal_pull_factor,
-                v2_uv_applied,
-                20,
+            self.draw_fancy_edge(
+                edge,
+                uv_plane_3d_model_matrix,
+                imm,
+                color,
+                normal_pull_factor,
             );
-
-            curve
-                .draw(&mut CubicBezierCurveDrawData::new(imm, color))
-                .unwrap();
         });
 
         let node = self.get_node(vert.get_node().unwrap()).unwrap();
-        let uv = vert.uv.unwrap();
-        let uv_pos = apply_model_matrix_vec2(&uv, uv_plane_3d_model_matrix);
+        self.draw_fancy_node_vert_connect(
+            node,
+            vert,
+            uv_plane_3d_model_matrix,
+            mesh_model_matrix,
+            imm,
+            color,
+            normal_pull_factor,
+        );
+    }
+}
+
+/// Draw the element only in a fancy way
+trait MeshDrawFancy<END, EVD, EED> {
+    #[allow(clippy::too_many_arguments)]
+    fn draw_fancy_node_vert_connect(
+        &self,
+        node: &mesh::Node<END>,
+        vert: &mesh::Vert<EVD>,
+        uv_plane_3d_model_matrix: &glm::DMat4,
+        mesh_model_matrix: &glm::DMat4,
+        imm: &mut GPUImmediate,
+        color: glm::Vec4,
+        normal_pull_factor: f64,
+    );
+
+    fn draw_fancy_edge(
+        &self,
+        edge: &mesh::Edge<EED>,
+        uv_plane_3d_model_matrix: &glm::DMat4,
+        imm: &mut GPUImmediate,
+        color: glm::Vec4,
+        normal_pull_factor: f64,
+    );
+}
+
+impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED> for mesh::Mesh<END, EVD, EED, EFD> {
+    fn draw_fancy_node_vert_connect(
+        &self,
+        node: &mesh::Node<END>,
+        vert: &mesh::Vert<EVD>,
+        uv_plane_3d_model_matrix: &glm::DMat4,
+        mesh_model_matrix: &glm::DMat4,
+        imm: &mut GPUImmediate,
+        color: glm::Vec4,
+        normal_pull_factor: f64,
+    ) {
+        let uv = vert.uv.as_ref().unwrap();
+        let uv_pos = apply_model_matrix_vec2(uv, uv_plane_3d_model_matrix);
+        let initial_uv_plane_normal = glm::vec3(0.0, 0.0, 1.0);
+        let uv_plane_normal_applied =
+            apply_model_matrix_vec3(&initial_uv_plane_normal, uv_plane_3d_model_matrix);
 
         let node_pos_applied = apply_model_matrix_vec3(&node.pos, mesh_model_matrix);
         let node_normal_applied = apply_model_matrix_vec3(&node.normal.unwrap(), mesh_model_matrix);
 
         let curve = CubicBezierCurve::new(
             node_pos_applied,
-            node_pos_applied + node_normal_applied,
+            node_pos_applied + node_normal_applied * normal_pull_factor,
+            uv_pos + uv_plane_normal_applied * normal_pull_factor,
             uv_pos,
-            uv_pos,
+            20,
+        );
+
+        curve
+            .draw(&mut CubicBezierCurveDrawData::new(imm, color))
+            .unwrap();
+    }
+
+    fn draw_fancy_edge(
+        &self,
+        edge: &mesh::Edge<EED>,
+        uv_plane_3d_model_matrix: &glm::DMat4,
+        imm: &mut GPUImmediate,
+        color: glm::Vec4,
+        normal_pull_factor: f64,
+    ) {
+        let v1_index = edge.get_verts().unwrap().0;
+        let v2_index = edge.get_verts().unwrap().1;
+
+        let v1 = self.get_vert(v1_index).unwrap();
+        let v2 = self.get_vert(v2_index).unwrap();
+
+        let v1_uv = v1.uv.unwrap();
+        let v2_uv = v2.uv.unwrap();
+
+        let v1_uv_applied = apply_model_matrix_vec2(&v1_uv, uv_plane_3d_model_matrix);
+        let v2_uv_applied = apply_model_matrix_vec2(&v2_uv, uv_plane_3d_model_matrix);
+
+        let initial_normal = glm::vec3(0.0, 0.0, 1.0);
+        let normal_applied = apply_model_matrix_vec3(&initial_normal, uv_plane_3d_model_matrix);
+
+        let curve = CubicBezierCurve::new(
+            v1_uv_applied,
+            v1_uv_applied + normal_applied * normal_pull_factor,
+            v2_uv_applied + normal_applied * normal_pull_factor,
+            v2_uv_applied,
             20,
         );
 
