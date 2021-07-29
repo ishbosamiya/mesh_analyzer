@@ -218,6 +218,14 @@ fn main() {
                             n3.normalize_mut();
                         }
 
+                        if n1_norm_resp.clicked()
+                            || n2_norm_resp.clicked()
+                            || n3_norm_resp.clicked()
+                        {
+                            pn_triangle =
+                                CubicPointNormalTriangle::new(p1, p2, p3, n1, n2, n3, num_steps);
+                        }
+
                         let response = num_steps_resp.union(p1_resp.union(p2_resp.union(
                             p3_resp.union(n1_resp.union(n2_resp.union(
                                 n3_resp.union(n1_norm_resp.union(n2_norm_resp.union(n3_norm_resp))),
