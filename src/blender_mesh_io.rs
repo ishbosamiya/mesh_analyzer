@@ -751,10 +751,11 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
         let uv_pos = apply_model_matrix_vec2(uv, uv_plane_3d_model_matrix);
         let initial_uv_plane_normal = glm::vec3(0.0, 0.0, 1.0);
         let uv_plane_normal_applied =
-            apply_model_matrix_vec3(&initial_uv_plane_normal, uv_plane_3d_model_matrix);
+            apply_model_matrix_to_normal(&initial_uv_plane_normal, uv_plane_3d_model_matrix);
 
         let node_pos_applied = apply_model_matrix_vec3(&node.pos, mesh_model_matrix);
-        let node_normal_applied = apply_model_matrix_vec3(&node.normal.unwrap(), mesh_model_matrix);
+        let node_normal_applied =
+            apply_model_matrix_to_normal(&node.normal.unwrap(), mesh_model_matrix);
 
         let curve = CubicBezierCurve::new(
             node_pos_applied,
@@ -794,7 +795,8 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
         let v2_uv_applied = apply_model_matrix_vec2(&v2_uv, uv_plane_3d_model_matrix);
 
         let initial_normal = glm::vec3(0.0, 0.0, 1.0);
-        let normal_applied = apply_model_matrix_vec3(&initial_normal, uv_plane_3d_model_matrix);
+        let normal_applied =
+            apply_model_matrix_to_normal(&initial_normal, uv_plane_3d_model_matrix);
 
         let smooth_color_3d_shader = get_smooth_color_3d_shader().as_ref().unwrap();
         smooth_color_3d_shader.use_shader();
@@ -845,7 +847,7 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
 
         let initial_uv_plane_normal = glm::vec3(0.0, 0.0, 1.0);
         let uv_plane_normal_applied =
-            apply_model_matrix_vec3(&initial_uv_plane_normal, uv_plane_3d_model_matrix);
+            apply_model_matrix_to_normal(&initial_uv_plane_normal, uv_plane_3d_model_matrix);
 
         let point_away = triangle_center - uv_plane_normal_applied;
 
@@ -871,7 +873,7 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
             .draw(&mut PointNormalTriangleDrawData::new(
                 imm,
                 color,
-                false,
+                true,
                 0.2,
                 glm::vec4(1.0, 0.0, 0.0, 1.0),
             ))
@@ -888,7 +890,7 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
 
                     let node_pos_applied = apply_model_matrix_vec3(&node.pos, mesh_model_matrix);
                     let node_normal_applied =
-                        apply_model_matrix_vec3(&node.normal.unwrap(), mesh_model_matrix);
+                        apply_model_matrix_to_normal(&node.normal.unwrap(), mesh_model_matrix);
 
                     (node_pos_applied, node_normal_applied)
                 })
@@ -919,7 +921,7 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
                 .draw(&mut PointNormalTriangleDrawData::new(
                     imm,
                     color,
-                    false,
+                    true,
                     0.2,
                     glm::vec4(1.0, 0.0, 0.0, 1.0),
                 ))
@@ -934,6 +936,10 @@ fn apply_model_matrix_vec2(v: &glm::DVec2, model: &glm::DMat4) -> glm::DVec3 {
 
 fn apply_model_matrix_vec3(v: &glm::DVec3, model: &glm::DMat4) -> glm::DVec3 {
     glm::vec4_to_vec3(&(model * math::append_one(&v)))
+}
+
+fn apply_model_matrix_to_normal(normal: &glm::DVec3, model: &glm::DMat4) -> glm::DVec3 {
+    apply_model_matrix_vec3(normal, &glm::inverse_transpose(*model))
 }
 
 #[cfg(test)]
