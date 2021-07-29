@@ -46,6 +46,7 @@ fn main() {
         gl::Disable(gl::CULL_FACE);
         gl::Enable(gl::DEPTH_TEST);
         gl::Enable(gl::MULTISAMPLE);
+        gl::Enable(gl::BLEND);
     }
 
     // setup the egui backend
@@ -169,7 +170,7 @@ fn main() {
             pn_triangle
                 .draw(&mut PointNormalTriangleDrawData::new(
                     &mut imm,
-                    glm::vec4(0.1, 0.8, 0.8, 0.7),
+                    glm::vec4(0.1, 0.8, 0.8, 0.45),
                     pn_triangle_display_normals,
                     pn_triangle_normal_factor,
                     glm::vec4(0.8, 0.24, 0.2, 1.0),
