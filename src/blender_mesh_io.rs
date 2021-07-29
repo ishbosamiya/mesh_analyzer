@@ -7,6 +7,7 @@ use quick_renderer::drawable::Drawable;
 use quick_renderer::gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode};
 use quick_renderer::{glm, mesh, shader};
 
+use crate::curve::{PointNormalTriangle, PointNormalTriangleDrawData};
 use crate::math;
 use crate::{
     config::Config,
@@ -420,7 +421,9 @@ impl<
             crate::config::Element::Vert => {
                 self.visualize_vert(config, &uv_plane_3d_model_matrix, &mesh_model_matrix, imm);
             }
-            crate::config::Element::Edge => todo!(),
+            crate::config::Element::Edge => {
+                self.visualize_edge(config, &uv_plane_3d_model_matrix, &mesh_model_matrix, imm);
+            }
             crate::config::Element::Face => todo!(),
         }
     }
@@ -445,6 +448,19 @@ trait MeshExtensionPrivate<END, EVD, EED, EFD> {
     /// It returns back all the edges and node that cannot be visualized.
     /// TODO(ish): the returning part
     fn visualize_vert(
+        &self,
+        config: &Config<END, EVD, EED, EFD>,
+        uv_plane_3d_model_matrix: &glm::DMat4,
+        mesh_model_matrix: &glm::DMat4,
+        imm: &mut GPUImmediate,
+    );
+
+    /// Tries to visualize all the links stored in the edge
+    /// that refer to it.
+    ///
+    /// It returns back all the verts and faces that cannot be visualized.
+    /// TODO(ish): the returning part
+    fn visualize_edge(
         &self,
         config: &Config<END, EVD, EED, EFD>,
         uv_plane_3d_model_matrix: &glm::DMat4,
@@ -531,10 +547,48 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
             normal_pull_factor,
         );
     }
+
+    fn visualize_edge(
+        &self,
+        config: &Config<END, EVD, EED, EFD>,
+        uv_plane_3d_model_matrix: &glm::DMat4,
+        mesh_model_matrix: &glm::DMat4,
+        imm: &mut GPUImmediate,
+    ) {
+        let edge_color = glm::vec4(0.1, 0.8, 0.8, 0.3);
+        let face_color = glm::vec4(0.8, 0.1, 0.8, 0.3);
+        let normal_pull_factor = 0.2;
+
+        let edge = self
+            .get_edges()
+            .get_unknown_gen(config.get_element_index())
+            .unwrap()
+            .0;
+
+        self.draw_fancy_edge(
+            edge,
+            uv_plane_3d_model_matrix,
+            imm,
+            edge_color,
+            normal_pull_factor,
+        );
+
+        edge.get_faces().iter().for_each(|face_index| {
+            let face = self.get_face(*face_index).unwrap();
+            self.draw_fancy_face(
+                face,
+                uv_plane_3d_model_matrix,
+                mesh_model_matrix,
+                imm,
+                face_color,
+                normal_pull_factor,
+            );
+        });
+    }
 }
 
 /// Draw the element only in a fancy way
-trait MeshDrawFancy<END, EVD, EED> {
+trait MeshDrawFancy<END, EVD, EED, EFD> {
     #[allow(clippy::too_many_arguments)]
     fn draw_fancy_node_vert_connect(
         &self,
@@ -555,9 +609,19 @@ trait MeshDrawFancy<END, EVD, EED> {
         color: glm::Vec4,
         normal_pull_factor: f64,
     );
+
+    fn draw_fancy_face(
+        &self,
+        face: &mesh::Face<EFD>,
+        uv_plane_3d_model_matrix: &glm::DMat4,
+        mesh_model_matrix: &glm::DMat4,
+        imm: &mut GPUImmediate,
+        color: glm::Vec4,
+        normal_pull_factor: f64,
+    );
 }
 
-impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED> for mesh::Mesh<END, EVD, EED, EFD> {
+impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, EVD, EED, EFD> {
     fn draw_fancy_node_vert_connect(
         &self,
         node: &mesh::Node<END>,
@@ -623,6 +687,67 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED> for mesh::Mesh<END, EVD, E
 
         curve
             .draw(&mut CubicBezierCurveDrawData::new(imm, color))
+            .unwrap();
+    }
+
+    fn draw_fancy_face(
+        &self,
+        face: &mesh::Face<EFD>,
+        uv_plane_3d_model_matrix: &glm::DMat4,
+        mesh_model_matrix: &glm::DMat4,
+        imm: &mut GPUImmediate,
+        color: glm::Vec4,
+        normal_pull_factor: f64,
+    ) {
+        // Currently only support triangles
+        assert_eq!(face.get_verts().len(), 3);
+
+        let v1_index = face.get_verts()[0];
+        let v2_index = face.get_verts()[1];
+        let v3_index = face.get_verts()[2];
+
+        let v1 = self.get_vert(v1_index).unwrap();
+        let v2 = self.get_vert(v2_index).unwrap();
+        let v3 = self.get_vert(v3_index).unwrap();
+
+        let v1_uv = v1.uv.unwrap();
+        let v2_uv = v2.uv.unwrap();
+        let v3_uv = v3.uv.unwrap();
+
+        let v1_uv_applied = apply_model_matrix_vec2(&v1_uv, uv_plane_3d_model_matrix);
+        let v2_uv_applied = apply_model_matrix_vec2(&v2_uv, uv_plane_3d_model_matrix);
+        let v3_uv_applied = apply_model_matrix_vec2(&v3_uv, uv_plane_3d_model_matrix);
+
+        let triangle_center = (v1_uv_applied + v2_uv_applied + v3_uv_applied) / 3.0;
+
+        let initial_uv_plane_normal = glm::vec3(0.0, 0.0, 1.0);
+        let uv_plane_normal_applied =
+            apply_model_matrix_vec3(&initial_uv_plane_normal, uv_plane_3d_model_matrix);
+
+        let point_away = triangle_center - uv_plane_normal_applied;
+
+        let v1_norm = (v1_uv_applied - point_away).normalize() * 2.5 * normal_pull_factor;
+        let v2_norm = (v2_uv_applied - point_away).normalize() * 2.5 * normal_pull_factor;
+        let v3_norm = (v3_uv_applied - point_away).normalize() * 2.5 * normal_pull_factor;
+
+        let pn_triangle = PointNormalTriangle::new(
+            v1_uv_applied,
+            v2_uv_applied,
+            v3_uv_applied,
+            v1_norm,
+            v2_norm,
+            v3_norm,
+            10,
+        );
+
+        pn_triangle
+            .draw(&mut PointNormalTriangleDrawData::new(
+                imm,
+                color,
+                false,
+                0.2,
+                glm::vec4(1.0, 0.0, 0.0, 1.0),
+            ))
             .unwrap();
     }
 }
