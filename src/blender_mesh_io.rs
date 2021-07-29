@@ -710,12 +710,8 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
         color: glm::Vec4,
         imm: &mut GPUImmediate,
     ) {
-        let pos = &node.pos;
-        draw_sphere_at(
-            &(pos + glm::vec4_to_vec3(&(mesh_model_matrix * glm::vec4(0.0, 0.0, 0.0, 1.0)))),
-            color,
-            imm,
-        );
+        let node_pos_applied = apply_model_matrix_vec3(&node.pos, mesh_model_matrix);
+        draw_sphere_at(&node_pos_applied, color, imm);
     }
 
     fn draw_fancy_vert(
@@ -725,13 +721,10 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
         color: glm::Vec4,
         imm: &mut GPUImmediate,
     ) {
-        let uv = glm::vec2_to_vec3(&vert.uv.unwrap());
+        let uv = vert.uv.as_ref().unwrap();
+        let uv_pos = apply_model_matrix_vec2(uv, uv_plane_3d_model_matrix);
 
-        draw_sphere_at(
-            &(uv + glm::vec4_to_vec3(&(uv_plane_3d_model_matrix * glm::vec4(0.0, 0.0, 0.0, 1.0)))),
-            color,
-            imm,
-        );
+        draw_sphere_at(&uv_pos, color, imm);
     }
 
     fn draw_fancy_node_vert_connect(
