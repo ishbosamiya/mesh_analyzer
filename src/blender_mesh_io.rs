@@ -424,7 +424,9 @@ impl<
             crate::config::Element::Edge => {
                 self.visualize_edge(config, &uv_plane_3d_model_matrix, &mesh_model_matrix, imm);
             }
-            crate::config::Element::Face => todo!(),
+            crate::config::Element::Face => {
+                self.visualize_face(config, &uv_plane_3d_model_matrix, &mesh_model_matrix, imm);
+            }
         }
     }
 }
@@ -461,6 +463,19 @@ trait MeshExtensionPrivate<END, EVD, EED, EFD> {
     /// It returns back all the verts and faces that cannot be visualized.
     /// TODO(ish): the returning part
     fn visualize_edge(
+        &self,
+        config: &Config<END, EVD, EED, EFD>,
+        uv_plane_3d_model_matrix: &glm::DMat4,
+        mesh_model_matrix: &glm::DMat4,
+        imm: &mut GPUImmediate,
+    );
+
+    /// Tries to visualize all the links stored in the face
+    /// that refer to it.
+    ///
+    /// It returns back all the references that cannot be visualized.
+    /// TODO(ish): the returning part
+    fn visualize_face(
         &self,
         config: &Config<END, EVD, EED, EFD>,
         uv_plane_3d_model_matrix: &glm::DMat4,
@@ -584,6 +599,31 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
                 normal_pull_factor,
             );
         });
+    }
+
+    fn visualize_face(
+        &self,
+        config: &Config<END, EVD, EED, EFD>,
+        uv_plane_3d_model_matrix: &glm::DMat4,
+        mesh_model_matrix: &glm::DMat4,
+        imm: &mut GPUImmediate,
+    ) {
+        let face = self
+            .get_faces()
+            .get_unknown_gen(config.get_element_index())
+            .unwrap()
+            .0;
+
+        let face_color = glm::vec4(0.8, 0.1, 0.8, 0.3);
+        let normal_pull_factor = 0.2;
+        self.draw_fancy_face(
+            face,
+            uv_plane_3d_model_matrix,
+            mesh_model_matrix,
+            imm,
+            face_color,
+            normal_pull_factor,
+        );
     }
 }
 
