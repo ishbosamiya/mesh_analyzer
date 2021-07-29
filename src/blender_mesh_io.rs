@@ -410,7 +410,7 @@ impl<
     }
 
     fn visualize_config(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate) {
-        let uv_plane_3d_model_matrix = config.get_uv_plane_3d_model_matrix();
+        let uv_plane_3d_model_matrix = config.get_uv_plane_3d_transform().get_matrix();
         let mesh_model_matrix = config.get_mesh_transform().get_matrix();
         match config.get_element() {
             crate::config::Element::Node => {

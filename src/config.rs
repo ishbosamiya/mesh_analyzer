@@ -128,10 +128,6 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
         &self.uv_plane_3d_transform
     }
 
-    pub fn get_uv_plane_3d_model_matrix(&self) -> glm::DMat4 {
-        self.uv_plane_3d_transform.get_matrix()
-    }
-
     pub fn get_uv_map_color(&self) -> glm::DVec4 {
         self.uv_map_color
     }

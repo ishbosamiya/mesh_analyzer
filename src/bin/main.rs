@@ -153,7 +153,7 @@ fn main() {
 
             mesh.draw_uv(&mut MeshUVDrawData::new(
                 &mut imm,
-                &glm::convert(config.get_uv_plane_3d_model_matrix()),
+                &glm::convert(config.get_uv_plane_3d_transform().get_matrix()),
                 &glm::convert(config.get_uv_map_color()),
             ));
 
