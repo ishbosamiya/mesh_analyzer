@@ -591,6 +591,8 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
             normal_pull_factor,
         );
 
+        self.draw_fancy_node_edge(edge, mesh_model_matrix, imm, edge_color, normal_pull_factor);
+
         edge.get_faces().iter().for_each(|face_index| {
             let face = self.get_face(*face_index).unwrap();
             self.draw_fancy_face(
@@ -686,6 +688,15 @@ trait MeshDrawFancy<END, EVD, EED, EFD> {
         &self,
         edge: &mesh::Edge<EED>,
         uv_plane_3d_model_matrix: &glm::DMat4,
+        imm: &mut GPUImmediate,
+        color: glm::Vec4,
+        normal_pull_factor: f64,
+    );
+
+    fn draw_fancy_node_edge(
+        &self,
+        edge: &mesh::Edge<EED>,
+        mesh_model_matrix: &glm::DMat4,
         imm: &mut GPUImmediate,
         color: glm::Vec4,
         normal_pull_factor: f64,
@@ -808,6 +819,48 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
             .unwrap();
     }
 
+    fn draw_fancy_node_edge(
+        &self,
+        edge: &mesh::Edge<EED>,
+        mesh_model_matrix: &glm::DMat4,
+        imm: &mut GPUImmediate,
+        color: glm::Vec4,
+        normal_pull_factor: f64,
+    ) {
+        let v1_index = edge.get_verts().unwrap().0;
+        let v2_index = edge.get_verts().unwrap().1;
+
+        let v1 = self.get_vert(v1_index).unwrap();
+        let v2 = self.get_vert(v2_index).unwrap();
+
+        let n1 = self.get_node(v1.get_node().unwrap()).unwrap();
+        let n2 = self.get_node(v2.get_node().unwrap()).unwrap();
+
+        let n1_pos_applied = apply_model_matrix_vec3(&n1.pos, mesh_model_matrix);
+        let n2_pos_applied = apply_model_matrix_vec3(&n2.pos, mesh_model_matrix);
+
+        let n1_normal_applied =
+            apply_model_matrix_to_normal(&n1.normal.unwrap(), mesh_model_matrix);
+        let n2_normal_applied =
+            apply_model_matrix_to_normal(&n2.normal.unwrap(), mesh_model_matrix);
+
+        let smooth_color_3d_shader = get_smooth_color_3d_shader().as_ref().unwrap();
+        smooth_color_3d_shader.use_shader();
+        smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
+
+        let curve = CubicBezierCurve::new(
+            n1_pos_applied,
+            n1_pos_applied + n1_normal_applied * normal_pull_factor,
+            n2_pos_applied + n2_normal_applied * normal_pull_factor,
+            n2_pos_applied,
+            20,
+        );
+
+        curve
+            .draw(&mut CubicBezierCurveDrawData::new(imm, color))
+            .unwrap();
+    }
+
     fn draw_fancy_face(
         &self,
         face: &mesh::Face<EFD>,
@@ -866,7 +919,7 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
             .draw(&mut PointNormalTriangleDrawData::new(
                 imm,
                 color,
-                true,
+                false,
                 0.2,
                 glm::vec4(1.0, 0.0, 0.0, 1.0),
             ))
@@ -914,7 +967,7 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
                 .draw(&mut PointNormalTriangleDrawData::new(
                     imm,
                     color,
-                    true,
+                    false,
                     0.2,
                     glm::vec4(1.0, 0.0, 0.0, 1.0),
                 ))
