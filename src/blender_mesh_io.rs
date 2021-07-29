@@ -630,12 +630,42 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
     }
 }
 
+fn draw_sphere_at(pos: &glm::DVec3, color: glm::Vec4, imm: &mut GPUImmediate) {
+    let smooth_color_3d_shader = get_smooth_color_3d_shader().as_ref().unwrap();
+    smooth_color_3d_shader.use_shader();
+    smooth_color_3d_shader.set_mat4(
+        "model\0",
+        &glm::convert(glm::scale(
+            &glm::translate(&glm::identity(), pos),
+            &glm::vec3(0.02, 0.02, 0.02),
+        )),
+    );
+
+    let ico_sphere = get_ico_sphere_subd_00();
+
+    ico_sphere
+        .draw(&mut MeshDrawData::new(
+            imm,
+            mesh::MeshUseShader::SmoothColor3D,
+            Some(color),
+        ))
+        .unwrap();
+}
+
 /// Draw the element only in a fancy way
 trait MeshDrawFancy<END, EVD, EED, EFD> {
     fn draw_fancy_node(
         &self,
         node: &mesh::Node<END>,
         mesh_model_matrix: &glm::DMat4,
+        color: glm::Vec4,
+        imm: &mut GPUImmediate,
+    );
+
+    fn draw_fancy_vert(
+        &self,
+        vert: &mesh::Vert<EVD>,
+        uv_plane_3d_model_matrix: &glm::DMat4,
         color: glm::Vec4,
         imm: &mut GPUImmediate,
     );
@@ -681,26 +711,27 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
         imm: &mut GPUImmediate,
     ) {
         let pos = &node.pos;
-
-        let smooth_color_3d_shader = get_smooth_color_3d_shader().as_ref().unwrap();
-        smooth_color_3d_shader.use_shader();
-        smooth_color_3d_shader.set_mat4(
-            "model\0",
-            &glm::convert(glm::scale(
-                &glm::translate(mesh_model_matrix, pos),
-                &glm::vec3(0.02, 0.02, 0.02),
-            )),
+        draw_sphere_at(
+            &(pos + glm::vec4_to_vec3(&(mesh_model_matrix * glm::vec4(0.0, 0.0, 0.0, 1.0)))),
+            color,
+            imm,
         );
+    }
 
-        let ico_sphere = get_ico_sphere_subd_00();
+    fn draw_fancy_vert(
+        &self,
+        vert: &mesh::Vert<EVD>,
+        uv_plane_3d_model_matrix: &glm::DMat4,
+        color: glm::Vec4,
+        imm: &mut GPUImmediate,
+    ) {
+        let uv = glm::vec2_to_vec3(&vert.uv.unwrap());
 
-        ico_sphere
-            .draw(&mut MeshDrawData::new(
-                imm,
-                mesh::MeshUseShader::SmoothColor3D,
-                Some(color),
-            ))
-            .unwrap();
+        draw_sphere_at(
+            &(uv + glm::vec4_to_vec3(&(uv_plane_3d_model_matrix * glm::vec4(0.0, 0.0, 0.0, 1.0)))),
+            color,
+            imm,
+        );
     }
 
     fn draw_fancy_node_vert_connect(
@@ -714,6 +745,7 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
         normal_pull_factor: f64,
     ) {
         self.draw_fancy_node(node, mesh_model_matrix, color, imm);
+        self.draw_fancy_vert(vert, uv_plane_3d_model_matrix, color, imm);
 
         let uv = vert.uv.as_ref().unwrap();
         let uv_pos = apply_model_matrix_vec2(uv, uv_plane_3d_model_matrix);
