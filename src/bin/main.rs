@@ -3,7 +3,6 @@ use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
 
 use mesh_analyzer::blender_mesh_io::MeshUVDrawData;
-use mesh_analyzer::curve::{PointNormalTriangle, PointNormalTriangleDrawData};
 use quick_renderer::camera::WindowCamera;
 use quick_renderer::drawable::Drawable;
 use quick_renderer::gpu_immediate::GPUImmediate;
@@ -13,7 +12,7 @@ use quick_renderer::shader;
 use quick_renderer::{egui, egui_glfw, gl, glfw, glm};
 
 use mesh_analyzer::config::Config;
-use mesh_analyzer::{prelude::*, ui_widgets};
+use mesh_analyzer::prelude::*;
 
 fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -100,10 +99,6 @@ fn main() {
 
     let mut config = Config::default();
 
-    let mut pn_triangle = PointNormalTriangle::default();
-    let mut pn_triangle_display_normals = false;
-    let mut pn_triangle_normal_factor = 0.1;
-
     while !window.should_close() {
         glfw.poll_events();
 
@@ -166,16 +161,6 @@ fn main() {
             smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
 
             mesh.visualize_config(&config, &mut imm);
-
-            pn_triangle
-                .draw(&mut PointNormalTriangleDrawData::new(
-                    &mut imm,
-                    glm::vec4(0.1, 0.8, 0.8, 0.45),
-                    pn_triangle_display_normals,
-                    pn_triangle_normal_factor,
-                    glm::vec4(0.8, 0.24, 0.2, 1.0),
-                ))
-                .unwrap();
         }
 
         // GUI starts
@@ -187,33 +172,6 @@ fn main() {
                     egui::ScrollArea::auto_sized().show(ui, |ui| {
                         config.draw_ui(&mesh, ui);
                         config.draw_ui_edit(&mesh, ui);
-
-                        ui.checkbox(&mut pn_triangle_display_normals, "Display Vertex Normals");
-                        ui.label("Normal Factor");
-                        ui.add(egui::Slider::new(&mut pn_triangle_normal_factor, 0.0..=1.0));
-                        ui.label("Num Steps");
-                        ui.add(egui::Slider::new(&mut pn_triangle.num_steps, 1..=25));
-                        ui.label("p1");
-                        ui.add(ui_widgets::Vec3::new(&mut pn_triangle.p1));
-                        ui.label("p2");
-                        ui.add(ui_widgets::Vec3::new(&mut pn_triangle.p2));
-                        ui.label("p3");
-                        ui.add(ui_widgets::Vec3::new(&mut pn_triangle.p3));
-                        ui.label("n1");
-                        ui.add(ui_widgets::Vec3::new(&mut pn_triangle.n1));
-                        if ui.button("normalize").clicked() {
-                            pn_triangle.n1.normalize_mut();
-                        }
-                        ui.label("n2");
-                        ui.add(ui_widgets::Vec3::new(&mut pn_triangle.n2));
-                        if ui.button("normalize").clicked() {
-                            pn_triangle.n2.normalize_mut();
-                        }
-                        ui.label("n3");
-                        ui.add(ui_widgets::Vec3::new(&mut pn_triangle.n3));
-                        if ui.button("normalize").clicked() {
-                            pn_triangle.n3.normalize_mut();
-                        }
                     });
                 });
             let (width, height) = window.get_framebuffer_size();
