@@ -166,7 +166,6 @@ fn main() {
 
             mesh.visualize_config(&config, &mut imm);
 
-            pn_triangle.compute_all();
             pn_triangle
                 .draw(&mut CubicPointNormalTriangleDrawData::new(
                     &mut imm,
@@ -193,7 +192,7 @@ fn main() {
                         ui.label("Num Steps");
                         let mut num_steps = pn_triangle.get_num_steps();
                         let num_steps_resp =
-                            ui.add(egui::Slider::new(&mut num_steps, 1..=5).clamp_to_range(true));
+                            ui.add(egui::Slider::new(&mut num_steps, 1..=25).clamp_to_range(true));
                         ui.label("p1");
                         let mut p1 = pn_triangle.get_p1();
                         let p1_resp = ui.add(ui_widgets::Vec3::new(&mut p1));

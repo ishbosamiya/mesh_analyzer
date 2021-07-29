@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+use itertools::Itertools;
 use quick_renderer::drawable::Drawable;
 use quick_renderer::glm;
 use quick_renderer::gpu_immediate::GPUImmediate;
@@ -11,17 +12,12 @@ use quick_renderer::shader;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Error {
     InvalidNumberOfSteps,
-    NoCacheAvailable,
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::InvalidNumberOfSteps => write!(f, "Invalid Number of Steps"),
-            Error::NoCacheAvailable => write!(
-                f,
-                "No Cache Available, you might want to call `compute_all()` before this call"
-            ),
         }
     }
 }
@@ -139,6 +135,73 @@ impl Drawable<CubicBezierCurveDrawData<'_>, Error> for CubicBezierCurve {
     }
 }
 
+struct ControlPoints {
+    positions: [glm::DVec3; 10],
+    normals: [glm::DVec3; 6],
+}
+
+impl ControlPoints {
+    fn new(positions: [glm::DVec3; 10], normals: [glm::DVec3; 6]) -> Self {
+        Self { positions, normals }
+    }
+
+    #[allow(clippy::zero_prefixed_literal)]
+    fn get_control_point(&self, number: usize) -> &glm::DVec3 {
+        &self.positions[match number {
+            300 => 0,
+            030 => 1,
+            003 => 2,
+            210 => 3,
+            120 => 4,
+            021 => 5,
+            012 => 6,
+            102 => 7,
+            201 => 8,
+            111 => 9,
+            _ => unreachable!(),
+        }]
+    }
+
+    #[allow(clippy::zero_prefixed_literal)]
+    fn get_normal_point(&self, number: usize) -> &glm::DVec3 {
+        &self.normals[match number {
+            200 => 0,
+            020 => 1,
+            002 => 2,
+            110 => 3,
+            011 => 4,
+            101 => 5,
+            _ => unreachable!(),
+        }]
+    }
+
+    #[allow(clippy::zero_prefixed_literal)]
+    fn get_pos_at(&self, u: f64, v: f64) -> glm::DVec3 {
+        let w = 1.0 - u - v;
+        self.get_control_point(300) * w.powi(3)
+            + self.get_control_point(030) * u.powi(3)
+            + self.get_control_point(003) * v.powi(3)
+            + self.get_control_point(210) * 3.0 * w.powi(2) * u
+            + self.get_control_point(120) * 3.0 * w * u.powi(2)
+            + self.get_control_point(201) * 3.0 * w.powi(2) * v
+            + self.get_control_point(021) * 3.0 * u.powi(2) * v
+            + self.get_control_point(102) * 3.0 * w * v.powi(2)
+            + self.get_control_point(012) * 3.0 * u * v.powi(2)
+            + self.get_control_point(111) * 6.0 * w * u * v
+    }
+
+    #[allow(clippy::zero_prefixed_literal)]
+    fn get_normal_at(&self, u: f64, v: f64) -> glm::DVec3 {
+        let w = 1.0 - u - v;
+        self.get_normal_point(200) * w.powi(2)
+            + self.get_normal_point(020) * u.powi(2)
+            + self.get_normal_point(002) * v.powi(2)
+            + self.get_normal_point(110) * w * u
+            + self.get_normal_point(011) * u * v
+            + self.get_normal_point(101) * w * v
+    }
+}
+
 /// Based on https://en.wikipedia.org/wiki/Point-normal_triangle and
 /// https://alex.vlachos.com/graphics/CurvedPNTriangles.pdf
 ///
@@ -155,26 +218,19 @@ pub struct CubicPointNormalTriangle {
     n3: glm::DVec3,
 
     num_steps: usize,
-
-    cached_triangles: Vec<CubicPointNormalTriangle>,
 }
 
 impl Default for CubicPointNormalTriangle {
     fn default() -> Self {
-        Self {
-            // p1: Default::default(),
-            // p2: Default::default(),
-            // p3: Default::default(),
-            p1: glm::vec3(1.0, 0.0, 0.0),
-            p2: glm::vec3(-1.0, 0.0, 0.0),
-            p3: glm::vec3(0.0, 0.0, 1.0),
-            n1: glm::vec3(0.0, 1.0, 0.0),
-            n2: glm::vec3(0.0, 1.0, 0.0),
-            n3: glm::vec3(0.0, 1.0, 0.0),
-            num_steps: 1,
-
-            cached_triangles: Vec::new(),
-        }
+        Self::new(
+            glm::vec3(1.0, 0.0, 0.0),
+            glm::vec3(-1.0, 0.0, 0.0),
+            glm::vec3(0.0, 0.0, 1.0),
+            glm::vec3(0.0, 1.0, 0.0),
+            glm::vec3(0.0, 1.0, 0.0),
+            glm::vec3(0.0, 1.0, 0.0),
+            1,
+        )
     }
 }
 
@@ -196,13 +252,10 @@ impl CubicPointNormalTriangle {
             n2,
             n3,
             num_steps,
-            cached_triangles: Vec::new(),
         }
     }
 
-    /// Subdivides this PN triangle to form 9 PN triangles
-    pub fn compute_one_level(&self) -> [CubicPointNormalTriangle; 9] {
-        assert!(self.num_steps > 0);
+    fn get_control_points(&self) -> ControlPoints {
         let p1 = &self.p1;
         let p2 = &self.p2;
         let p3 = &self.p3;
@@ -228,53 +281,26 @@ impl CubicPointNormalTriangle {
         let v = (p1 + p2 + p3) / 3.0;
         let b111 = e + (e - v) / 2.0;
 
-        let n300 = *n1;
-        let n030 = *n2;
-        let n003 = *n3;
+        let n200 = *n1;
+        let n020 = *n2;
+        let n002 = *n3;
 
-        let bary_b210 = calculate_barycentric_coords(p1, p2, p3, &b210);
-        let n210 = apply_barycentric_coords(&bary_b210, n1, n2, n3);
-        let bary_b120 = calculate_barycentric_coords(p1, p2, p3, &b120);
-        let n120 = apply_barycentric_coords(&bary_b120, n1, n2, n3);
-        let bary_b021 = calculate_barycentric_coords(p1, p2, p3, &b021);
-        let n021 = apply_barycentric_coords(&bary_b021, n1, n2, n3);
-        let bary_b012 = calculate_barycentric_coords(p1, p2, p3, &b012);
-        let n012 = apply_barycentric_coords(&bary_b012, n1, n2, n3);
-        let bary_b102 = calculate_barycentric_coords(p1, p2, p3, &b102);
-        let n102 = apply_barycentric_coords(&bary_b102, n1, n2, n3);
-        let bary_b201 = calculate_barycentric_coords(p1, p2, p3, &b201);
-        let n201 = apply_barycentric_coords(&bary_b201, n1, n2, n3);
-        let bary_b111 = calculate_barycentric_coords(p1, p2, p3, &b111);
-        let n111 = apply_barycentric_coords(&bary_b111, n1, n2, n3);
+        let compute_v = |pi: &glm::DVec3, pj: &glm::DVec3, ni: &glm::DVec3, nj: &glm::DVec3| {
+            2.0 * glm::dot(&(pj - pi), &(ni + nj)) / glm::dot(&(pj - pi), &(pj - pi))
+        };
 
-        [
-            CubicPointNormalTriangle::new(b300, b210, b201, n300, n210, n201, self.num_steps - 1),
-            CubicPointNormalTriangle::new(b210, b120, b111, n210, n120, n111, self.num_steps - 1),
-            CubicPointNormalTriangle::new(b210, b111, b201, n210, n111, n201, self.num_steps - 1),
-            CubicPointNormalTriangle::new(b201, b111, b102, n201, n111, n102, self.num_steps - 1),
-            CubicPointNormalTriangle::new(b120, b030, b021, n120, n030, n021, self.num_steps - 1),
-            CubicPointNormalTriangle::new(b120, b021, b111, n120, n021, n111, self.num_steps - 1),
-            CubicPointNormalTriangle::new(b111, b021, b012, n111, n021, n012, self.num_steps - 1),
-            CubicPointNormalTriangle::new(b111, b012, b102, n111, n012, n102, self.num_steps - 1),
-            CubicPointNormalTriangle::new(b102, b012, b003, n102, n012, n003, self.num_steps - 1),
-        ]
-    }
+        let h110 = n1 + n2 + compute_v(p1, p2, n1, n2) * (p2 - p1);
+        let h011 = n2 + n3 + compute_v(p2, p3, n2, n3) * (p3 - p2);
+        let h101 = n3 + n1 + compute_v(p3, p1, n3, n1) * (p1 - p3);
 
-    /// Computes and caches the triangles, returns the cached vec of
-    /// triangles
-    pub fn compute_all(&mut self) -> &Vec<CubicPointNormalTriangle> {
-        if self.cached_triangles.is_empty() {
-            let mut triangles = vec![self.clone()];
-            (0..self.num_steps).for_each(|_| {
-                triangles = triangles
-                    .drain(..)
-                    .flat_map(|triangle| triangle.compute_one_level().to_vec())
-                    .collect();
-            });
-            self.cached_triangles = triangles
-        }
+        let n110 = h110.normalize();
+        let n011 = h011.normalize();
+        let n101 = h101.normalize();
 
-        &self.cached_triangles
+        ControlPoints::new(
+            [b300, b030, b003, b210, b120, b021, b012, b102, b201, b111],
+            [n200, n020, n002, n110, n011, n101],
+        )
     }
 
     pub fn get_p1(&self) -> glm::DVec3 {
@@ -358,75 +384,91 @@ impl Drawable<CubicPointNormalTriangleDrawData<'_>, Error> for CubicPointNormalT
 
         smooth_color_3d_shader.use_shader();
 
-        let triangles = &self.cached_triangles;
+        let control_points = self.get_control_points();
 
-        if triangles.is_empty() {
-            return Err(Error::NoCacheAvailable);
-        }
+        let mut vertices = Vec::new();
+        let mut indices = Vec::new();
 
-        imm.begin(
-            GPUPrimType::Tris,
-            triangles.len() * 3,
-            &smooth_color_3d_shader,
-        );
+        // generate the verts
+        (0..self.num_steps).for_each(|i| {
+            let u = i as f64 / (self.num_steps - 1) as f64;
+            (0..self.num_steps).for_each(|j| {
+                let v = j as f64 / (self.num_steps - 1) as f64;
 
-        triangles.iter().for_each(|triangle| {
-            let p1: glm::Vec3 = glm::convert(triangle.p1);
-            let p2: glm::Vec3 = glm::convert(triangle.p2);
-            let p3: glm::Vec3 = glm::convert(triangle.p3);
-            let n1: glm::Vec3 = glm::convert((triangle.n1 + glm::vec3(1.0, 1.0, 1.0)) * 0.5);
-            let n2: glm::Vec3 = glm::convert((triangle.n2 + glm::vec3(1.0, 1.0, 1.0)) * 0.5);
-            let n3: glm::Vec3 = glm::convert((triangle.n3 + glm::vec3(1.0, 1.0, 1.0)) * 0.5);
+                let pos = control_points.get_pos_at(u, v);
+                let normal = control_points.get_normal_at(u, v);
 
-            // imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-            imm.attr_4f(color_attr, n1[0], n1[1], n1[2], 1.0);
-            imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
+                let pos: glm::Vec3 = glm::convert(pos);
+                let normal: glm::Vec3 = glm::convert(normal);
 
-            // imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-            imm.attr_4f(color_attr, n2[0], n2[1], n2[2], 1.0);
-            imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
-
-            // imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-            imm.attr_4f(color_attr, n3[0], n3[1], n3[2], 1.0);
-            imm.vertex_3f(pos_attr, p3[0], p3[1], p3[2]);
+                vertices.push((u, v, pos, normal));
+            });
         });
 
-        imm.end();
+        // generate the triangle indices
+        (0..self.num_steps - 1).for_each(|i| {
+            (0..self.num_steps - 1).for_each(|j| {
+                indices.push((self.num_steps) * j + i);
+                indices.push((self.num_steps) * (j + 1) + i);
+                indices.push((self.num_steps) * j + i + 1);
+
+                indices.push((self.num_steps) * j + i + 1);
+                indices.push((self.num_steps) * (j + 1) + i);
+                indices.push((self.num_steps) * (j + 1) + i + 1);
+            });
+        });
+
+        if indices.len() >= 3 {
+            imm.begin_at_most(GPUPrimType::Tris, indices.len(), &smooth_color_3d_shader);
+
+            for chunk in &indices.iter().chunks(3) {
+                let mut use_this = true;
+
+                let chunk: Vec<_> = chunk
+                    .map(|index| {
+                        let (u, v, _, _) = vertices[*index];
+                        if u + v > 1.0 {
+                            use_this = false;
+                            return usize::MAX;
+                        }
+                        *index
+                    })
+                    .collect();
+
+                if use_this {
+                    chunk.iter().for_each(|index| {
+                        let (_, _, pos, _) = vertices[*index];
+
+                        imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                        imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+                    });
+                }
+            }
+
+            imm.end();
+        }
 
         let normal_factor = extra_data.normal_factor;
 
         if extra_data.display_vertex_normals {
-            imm.begin(
+            imm.begin_at_most(
                 GPUPrimType::Lines,
-                triangles.len() * 3 * 2,
+                vertices.len() * 2,
                 &smooth_color_3d_shader,
             );
 
-            triangles.iter().for_each(|triangle| {
-                let p1: glm::Vec3 = glm::convert(triangle.p1);
-                let p2: glm::Vec3 = glm::convert(triangle.p2);
-                let p3: glm::Vec3 = glm::convert(triangle.p3);
-                let p1_n1: glm::Vec3 = glm::convert(triangle.p1 + triangle.n1 * normal_factor);
-                let p2_n2: glm::Vec3 = glm::convert(triangle.p2 + triangle.n2 * normal_factor);
-                let p3_n3: glm::Vec3 = glm::convert(triangle.p3 + triangle.n3 * normal_factor);
+            vertices.iter().for_each(|(u, v, pos, normal)| {
+                if u + v > 1.0 {
+                    return;
+                }
+
+                let pos_2: glm::Vec3 = pos + normal * normal_factor as f32;
 
                 imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-                imm.vertex_3f(pos_attr, p1[0], p1[1], p1[2]);
+                imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
 
                 imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-                imm.vertex_3f(pos_attr, p1_n1[0], p1_n1[1], p1_n1[2]);
-
-                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-                imm.vertex_3f(pos_attr, p2[0], p2[1], p2[2]);
-
-                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-                imm.vertex_3f(pos_attr, p2_n2[0], p2_n2[1], p2_n2[2]);
-
-                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-                imm.vertex_3f(pos_attr, p3[0], p3[1], p3[2]);
-
-                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-                imm.vertex_3f(pos_attr, p3_n3[0], p3_n3[1], p3_n3[2]);
+                imm.vertex_3f(pos_attr, pos_2[0], pos_2[1], pos_2[2]);
             });
 
             imm.end();
@@ -448,7 +490,7 @@ impl Drawable<CubicPointNormalTriangleDrawData<'_>, Error> for CubicPointNormalT
 ///
 /// # Reference
 /// https://gamedev.stackexchange.com/questions/23743/whats-the-most-efficient-way-to-find-barycentric-coordinates
-fn calculate_barycentric_coords(
+fn _calculate_barycentric_coords(
     p1: &glm::DVec3,
     p2: &glm::DVec3,
     p3: &glm::DVec3,
@@ -472,7 +514,7 @@ fn calculate_barycentric_coords(
     glm::vec3(u, v, w)
 }
 
-fn apply_barycentric_coords(
+fn _apply_barycentric_coords(
     bary_coords: &glm::DVec3,
     p1: &glm::DVec3,
     p2: &glm::DVec3,
