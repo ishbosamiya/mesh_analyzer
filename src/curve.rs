@@ -208,7 +208,7 @@ impl ControlPoints {
 /// No public access to the elements of struct since any change to
 /// them should trigger a recomputation of the surface.
 #[derive(Debug, Clone)]
-pub struct CubicPointNormalTriangle {
+pub struct PointNormalTriangle {
     p1: glm::DVec3,
     p2: glm::DVec3,
     p3: glm::DVec3,
@@ -220,7 +220,7 @@ pub struct CubicPointNormalTriangle {
     num_steps: usize,
 }
 
-impl Default for CubicPointNormalTriangle {
+impl Default for PointNormalTriangle {
     fn default() -> Self {
         Self::new(
             glm::vec3(1.0, 0.0, 0.0),
@@ -234,7 +234,7 @@ impl Default for CubicPointNormalTriangle {
     }
 }
 
-impl CubicPointNormalTriangle {
+impl PointNormalTriangle {
     pub fn new(
         p1: glm::DVec3,
         p2: glm::DVec3,
@@ -332,14 +332,14 @@ impl CubicPointNormalTriangle {
     }
 }
 
-pub struct CubicPointNormalTriangleDrawData<'a> {
+pub struct PointNormalTriangleDrawData<'a> {
     imm: &'a mut GPUImmediate,
     color: glm::Vec4,
     display_vertex_normals: bool,
     normal_factor: f64,
 }
 
-impl<'a> CubicPointNormalTriangleDrawData<'a> {
+impl<'a> PointNormalTriangleDrawData<'a> {
     pub fn new(
         imm: &'a mut GPUImmediate,
         color: glm::Vec4,
@@ -355,8 +355,8 @@ impl<'a> CubicPointNormalTriangleDrawData<'a> {
     }
 }
 
-impl Drawable<CubicPointNormalTriangleDrawData<'_>, Error> for CubicPointNormalTriangle {
-    fn draw(&self, extra_data: &mut CubicPointNormalTriangleDrawData) -> Result<(), Error> {
+impl Drawable<PointNormalTriangleDrawData<'_>, Error> for PointNormalTriangle {
+    fn draw(&self, extra_data: &mut PointNormalTriangleDrawData) -> Result<(), Error> {
         if self.num_steps == 0 {
             return Err(Error::InvalidNumberOfSteps);
         }
@@ -477,10 +477,7 @@ impl Drawable<CubicPointNormalTriangleDrawData<'_>, Error> for CubicPointNormalT
         Ok(())
     }
 
-    fn draw_wireframe(
-        &self,
-        _extra_data: &mut CubicPointNormalTriangleDrawData,
-    ) -> Result<(), Error> {
+    fn draw_wireframe(&self, _extra_data: &mut PointNormalTriangleDrawData) -> Result<(), Error> {
         unreachable!()
     }
 }

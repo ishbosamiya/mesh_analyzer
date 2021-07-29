@@ -3,7 +3,7 @@ use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
 
 use mesh_analyzer::blender_mesh_io::MeshUVDrawData;
-use mesh_analyzer::curve::{CubicPointNormalTriangle, CubicPointNormalTriangleDrawData};
+use mesh_analyzer::curve::{PointNormalTriangle, PointNormalTriangleDrawData};
 use quick_renderer::camera::WindowCamera;
 use quick_renderer::drawable::Drawable;
 use quick_renderer::gpu_immediate::GPUImmediate;
@@ -99,7 +99,7 @@ fn main() {
 
     let mut config = Config::default();
 
-    let mut pn_triangle = CubicPointNormalTriangle::default();
+    let mut pn_triangle = PointNormalTriangle::default();
     let mut pn_triangle_display_normals = false;
     let mut pn_triangle_normal_factor = 0.1;
 
@@ -167,7 +167,7 @@ fn main() {
             mesh.visualize_config(&config, &mut imm);
 
             pn_triangle
-                .draw(&mut CubicPointNormalTriangleDrawData::new(
+                .draw(&mut PointNormalTriangleDrawData::new(
                     &mut imm,
                     glm::vec4(0.1, 0.8, 0.8, 0.7),
                     pn_triangle_display_normals,
@@ -229,7 +229,7 @@ fn main() {
                             || n3_norm_resp.clicked()
                         {
                             pn_triangle =
-                                CubicPointNormalTriangle::new(p1, p2, p3, n1, n2, n3, num_steps);
+                                PointNormalTriangle::new(p1, p2, p3, n1, n2, n3, num_steps);
                         }
 
                         let response = num_steps_resp.union(p1_resp.union(p2_resp.union(
@@ -240,7 +240,7 @@ fn main() {
 
                         if response.changed() {
                             pn_triangle =
-                                CubicPointNormalTriangle::new(p1, p2, p3, n1, n2, n3, num_steps);
+                                PointNormalTriangle::new(p1, p2, p3, n1, n2, n3, num_steps);
                         }
                     });
                 });
