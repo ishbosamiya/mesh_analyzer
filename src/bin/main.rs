@@ -190,57 +190,30 @@ fn main() {
                         ui.label("Normal Factor");
                         ui.add(egui::Slider::new(&mut pn_triangle_normal_factor, 0.0..=1.0));
                         ui.label("Num Steps");
-                        let mut num_steps = pn_triangle.get_num_steps();
-                        let num_steps_resp =
-                            ui.add(egui::Slider::new(&mut num_steps, 1..=25).clamp_to_range(true));
+                        ui.add(
+                            egui::Slider::new(&mut pn_triangle.num_steps, 1..=25)
+                                .clamp_to_range(true),
+                        );
                         ui.label("p1");
-                        let mut p1 = pn_triangle.get_p1();
-                        let p1_resp = ui.add(ui_widgets::Vec3::new(&mut p1));
+                        ui.add(ui_widgets::Vec3::new(&mut pn_triangle.p1));
                         ui.label("p2");
-                        let mut p2 = pn_triangle.get_p2();
-                        let p2_resp = ui.add(ui_widgets::Vec3::new(&mut p2));
+                        ui.add(ui_widgets::Vec3::new(&mut pn_triangle.p2));
                         ui.label("p3");
-                        let mut p3 = pn_triangle.get_p3();
-                        let p3_resp = ui.add(ui_widgets::Vec3::new(&mut p3));
+                        ui.add(ui_widgets::Vec3::new(&mut pn_triangle.p3));
                         ui.label("n1");
-                        let mut n1 = pn_triangle.get_n1();
-                        let n1_resp = ui.add(ui_widgets::Vec3::new(&mut n1));
-                        let n1_norm_resp = ui.button("normalize");
-                        if n1_norm_resp.clicked() {
-                            n1.normalize_mut();
+                        ui.add(ui_widgets::Vec3::new(&mut pn_triangle.n1));
+                        if ui.button("normalize").clicked() {
+                            pn_triangle.n1.normalize_mut();
                         }
                         ui.label("n2");
-                        let mut n2 = pn_triangle.get_n2();
-                        let n2_resp = ui.add(ui_widgets::Vec3::new(&mut n2));
-                        let n2_norm_resp = ui.button("normalize");
-                        if n2_norm_resp.clicked() {
-                            n2.normalize_mut();
+                        ui.add(ui_widgets::Vec3::new(&mut pn_triangle.n2));
+                        if ui.button("normalize").clicked() {
+                            pn_triangle.n2.normalize_mut();
                         }
                         ui.label("n3");
-                        let mut n3 = pn_triangle.get_n3();
-                        let n3_resp = ui.add(ui_widgets::Vec3::new(&mut n3));
-                        let n3_norm_resp = ui.button("normalize");
-                        if n3_norm_resp.clicked() {
-                            n3.normalize_mut();
-                        }
-
-                        if n1_norm_resp.clicked()
-                            || n2_norm_resp.clicked()
-                            || n3_norm_resp.clicked()
-                        {
-                            pn_triangle =
-                                PointNormalTriangle::new(p1, p2, p3, n1, n2, n3, num_steps);
-                        }
-
-                        let response = num_steps_resp.union(p1_resp.union(p2_resp.union(
-                            p3_resp.union(n1_resp.union(n2_resp.union(
-                                n3_resp.union(n1_norm_resp.union(n2_norm_resp.union(n3_norm_resp))),
-                            ))),
-                        )));
-
-                        if response.changed() {
-                            pn_triangle =
-                                PointNormalTriangle::new(p1, p2, p3, n1, n2, n3, num_steps);
+                        ui.add(ui_widgets::Vec3::new(&mut pn_triangle.n3));
+                        if ui.button("normalize").clicked() {
+                            pn_triangle.n3.normalize_mut();
                         }
                     });
                 });

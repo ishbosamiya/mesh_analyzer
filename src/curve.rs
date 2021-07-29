@@ -204,20 +204,17 @@ impl ControlPoints {
 
 /// Based on https://en.wikipedia.org/wiki/Point-normal_triangle and
 /// https://alex.vlachos.com/graphics/CurvedPNTriangles.pdf
-///
-/// No public access to the elements of struct since any change to
-/// them should trigger a recomputation of the surface.
 #[derive(Debug, Clone)]
 pub struct PointNormalTriangle {
-    p1: glm::DVec3,
-    p2: glm::DVec3,
-    p3: glm::DVec3,
+    pub p1: glm::DVec3,
+    pub p2: glm::DVec3,
+    pub p3: glm::DVec3,
 
-    n1: glm::DVec3,
-    n2: glm::DVec3,
-    n3: glm::DVec3,
+    pub n1: glm::DVec3,
+    pub n2: glm::DVec3,
+    pub n3: glm::DVec3,
 
-    num_steps: usize,
+    pub num_steps: usize,
 }
 
 impl Default for PointNormalTriangle {
@@ -301,34 +298,6 @@ impl PointNormalTriangle {
             [b300, b030, b003, b210, b120, b021, b012, b102, b201, b111],
             [n200, n020, n002, n110, n011, n101],
         )
-    }
-
-    pub fn get_p1(&self) -> glm::DVec3 {
-        self.p1
-    }
-
-    pub fn get_p2(&self) -> glm::DVec3 {
-        self.p2
-    }
-
-    pub fn get_p3(&self) -> glm::DVec3 {
-        self.p3
-    }
-
-    pub fn get_n1(&self) -> glm::DVec3 {
-        self.n1
-    }
-
-    pub fn get_n2(&self) -> glm::DVec3 {
-        self.n2
-    }
-
-    pub fn get_n3(&self) -> glm::DVec3 {
-        self.n3
-    }
-
-    pub fn get_num_steps(&self) -> usize {
-        self.num_steps
     }
 }
 
