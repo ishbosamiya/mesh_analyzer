@@ -11,12 +11,17 @@ use quick_renderer::shader;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Error {
     InvalidNumberOfSteps,
+    NoCacheAvailable,
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::InvalidNumberOfSteps => write!(f, "Invalid Number of Steps"),
+            Error::NoCacheAvailable => write!(
+                f,
+                "No Cache Available, you might want to call `compute_all()` before this call"
+            ),
         }
     }
 }
@@ -136,17 +141,22 @@ impl Drawable<CubicBezierCurveDrawData<'_>, Error> for CubicBezierCurve {
 
 /// Based on https://en.wikipedia.org/wiki/Point-normal_triangle and
 /// https://alex.vlachos.com/graphics/CurvedPNTriangles.pdf
+///
+/// No public access to the elements of struct since any change to
+/// them should trigger a recomputation of the surface.
 #[derive(Debug, Clone)]
 pub struct CubicPointNormalTriangle {
-    pub p1: glm::DVec3,
-    pub p2: glm::DVec3,
-    pub p3: glm::DVec3,
+    p1: glm::DVec3,
+    p2: glm::DVec3,
+    p3: glm::DVec3,
 
-    pub n1: glm::DVec3,
-    pub n2: glm::DVec3,
-    pub n3: glm::DVec3,
+    n1: glm::DVec3,
+    n2: glm::DVec3,
+    n3: glm::DVec3,
 
-    pub num_steps: usize,
+    num_steps: usize,
+
+    cached_triangles: Vec<CubicPointNormalTriangle>,
 }
 
 impl Default for CubicPointNormalTriangle {
@@ -162,6 +172,8 @@ impl Default for CubicPointNormalTriangle {
             n2: glm::vec3(0.0, 1.0, 0.0),
             n3: glm::vec3(0.0, 1.0, 0.0),
             num_steps: 1,
+
+            cached_triangles: Vec::new(),
         }
     }
 }
@@ -184,6 +196,7 @@ impl CubicPointNormalTriangle {
             n2,
             n3,
             num_steps,
+            cached_triangles: Vec::new(),
         }
     }
 
@@ -247,15 +260,49 @@ impl CubicPointNormalTriangle {
         ]
     }
 
-    pub fn compute_all(&self) -> Vec<CubicPointNormalTriangle> {
-        let mut triangles = vec![self.clone()];
-        (0..self.num_steps).for_each(|_| {
-            triangles = triangles
-                .drain(..)
-                .flat_map(|triangle| triangle.compute_one_level().to_vec())
-                .collect();
-        });
-        triangles
+    /// Computes and caches the triangles, returns the cached vec of
+    /// triangles
+    pub fn compute_all(&mut self) -> &Vec<CubicPointNormalTriangle> {
+        if self.cached_triangles.is_empty() {
+            let mut triangles = vec![self.clone()];
+            (0..self.num_steps).for_each(|_| {
+                triangles = triangles
+                    .drain(..)
+                    .flat_map(|triangle| triangle.compute_one_level().to_vec())
+                    .collect();
+            });
+            self.cached_triangles = triangles
+        }
+
+        &self.cached_triangles
+    }
+
+    pub fn get_p1(&self) -> glm::DVec3 {
+        self.p1
+    }
+
+    pub fn get_p2(&self) -> glm::DVec3 {
+        self.p2
+    }
+
+    pub fn get_p3(&self) -> glm::DVec3 {
+        self.p3
+    }
+
+    pub fn get_n1(&self) -> glm::DVec3 {
+        self.n1
+    }
+
+    pub fn get_n2(&self) -> glm::DVec3 {
+        self.n2
+    }
+
+    pub fn get_n3(&self) -> glm::DVec3 {
+        self.n3
+    }
+
+    pub fn get_num_steps(&self) -> usize {
+        self.num_steps
     }
 }
 
@@ -299,7 +346,11 @@ impl Drawable<CubicPointNormalTriangleDrawData<'_>, Error> for CubicPointNormalT
 
         smooth_color_3d_shader.use_shader();
 
-        let triangles = self.compute_all();
+        let triangles = &self.cached_triangles;
+
+        if triangles.is_empty() {
+            return Err(Error::NoCacheAvailable);
+        }
 
         imm.begin(
             GPUPrimType::Tris,
