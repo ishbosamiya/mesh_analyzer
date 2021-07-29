@@ -749,6 +749,55 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
                 glm::vec4(1.0, 0.0, 0.0, 1.0),
             ))
             .unwrap();
+
+        // draw the face on the mesh
+        {
+            let poses_normals: Vec<_> = self
+                .get_nodes_of_face(face)
+                .iter()
+                .map(|op_node_index| {
+                    let node_index = op_node_index.unwrap();
+                    let node = self.get_node(node_index).unwrap();
+
+                    let node_pos_applied = apply_model_matrix_vec3(&node.pos, mesh_model_matrix);
+                    let node_normal_applied =
+                        apply_model_matrix_vec3(&node.normal.unwrap(), mesh_model_matrix);
+
+                    (node_pos_applied, node_normal_applied)
+                })
+                .collect();
+
+            assert_eq!(poses_normals.len(), 3);
+
+            let (center_tot, avg_normal_tot): (glm::DVec3, glm::DVec3) = poses_normals.iter().fold(
+                (glm::zero(), glm::zero()),
+                |acc: (glm::DVec3, glm::DVec3), (pos, normal)| (acc.0 + pos, acc.1 + normal),
+            );
+            let center = center_tot / poses_normals.len() as f64;
+            let avg_normal = avg_normal_tot / poses_normals.len() as f64;
+
+            let point_away = center - avg_normal;
+
+            let pn_triangle = PointNormalTriangle::new(
+                poses_normals[0].0,
+                poses_normals[1].0,
+                poses_normals[2].0,
+                (poses_normals[0].0 - point_away).normalize() * 2.5 * normal_pull_factor,
+                (poses_normals[1].0 - point_away).normalize() * 2.5 * normal_pull_factor,
+                (poses_normals[2].0 - point_away).normalize() * 2.5 * normal_pull_factor,
+                10,
+            );
+
+            pn_triangle
+                .draw(&mut PointNormalTriangleDrawData::new(
+                    imm,
+                    color,
+                    false,
+                    0.2,
+                    glm::vec4(1.0, 0.0, 0.0, 1.0),
+                ))
+                .unwrap();
+        }
     }
 }
 
