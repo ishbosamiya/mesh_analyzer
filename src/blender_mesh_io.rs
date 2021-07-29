@@ -1,3 +1,6 @@
+use quick_renderer::mesh::builtins::get_ico_sphere_subd_00;
+use quick_renderer::mesh::MeshDrawData;
+use quick_renderer::shader::builtins::get_smooth_color_3d_shader;
 use rmps::Deserializer;
 use serde::Deserialize;
 
@@ -629,6 +632,14 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
 
 /// Draw the element only in a fancy way
 trait MeshDrawFancy<END, EVD, EED, EFD> {
+    fn draw_fancy_node(
+        &self,
+        node: &mesh::Node<END>,
+        mesh_model_matrix: &glm::DMat4,
+        color: glm::Vec4,
+        imm: &mut GPUImmediate,
+    );
+
     #[allow(clippy::too_many_arguments)]
     fn draw_fancy_node_vert_connect(
         &self,
@@ -662,6 +673,36 @@ trait MeshDrawFancy<END, EVD, EED, EFD> {
 }
 
 impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, EVD, EED, EFD> {
+    fn draw_fancy_node(
+        &self,
+        node: &mesh::Node<END>,
+        mesh_model_matrix: &glm::DMat4,
+        color: glm::Vec4,
+        imm: &mut GPUImmediate,
+    ) {
+        let pos = &node.pos;
+
+        let smooth_color_3d_shader = get_smooth_color_3d_shader().as_ref().unwrap();
+        smooth_color_3d_shader.use_shader();
+        smooth_color_3d_shader.set_mat4(
+            "model\0",
+            &glm::convert(glm::scale(
+                &glm::translate(mesh_model_matrix, pos),
+                &glm::vec3(0.02, 0.02, 0.02),
+            )),
+        );
+
+        let ico_sphere = get_ico_sphere_subd_00();
+
+        ico_sphere
+            .draw(&mut MeshDrawData::new(
+                imm,
+                mesh::MeshUseShader::SmoothColor3D,
+                Some(color),
+            ))
+            .unwrap();
+    }
+
     fn draw_fancy_node_vert_connect(
         &self,
         node: &mesh::Node<END>,
@@ -672,6 +713,8 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
         color: glm::Vec4,
         normal_pull_factor: f64,
     ) {
+        self.draw_fancy_node(node, mesh_model_matrix, color, imm);
+
         let uv = vert.uv.as_ref().unwrap();
         let uv_pos = apply_model_matrix_vec2(uv, uv_plane_3d_model_matrix);
         let initial_uv_plane_normal = glm::vec3(0.0, 0.0, 1.0);
@@ -688,6 +731,10 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
             uv_pos,
             20,
         );
+
+        let smooth_color_3d_shader = get_smooth_color_3d_shader().as_ref().unwrap();
+        smooth_color_3d_shader.use_shader();
+        smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
 
         curve
             .draw(&mut CubicBezierCurveDrawData::new(imm, color))
@@ -716,6 +763,10 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
 
         let initial_normal = glm::vec3(0.0, 0.0, 1.0);
         let normal_applied = apply_model_matrix_vec3(&initial_normal, uv_plane_3d_model_matrix);
+
+        let smooth_color_3d_shader = get_smooth_color_3d_shader().as_ref().unwrap();
+        smooth_color_3d_shader.use_shader();
+        smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
 
         let curve = CubicBezierCurve::new(
             v1_uv_applied,
@@ -779,6 +830,10 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
             v3_norm,
             10,
         );
+
+        let smooth_color_3d_shader = get_smooth_color_3d_shader().as_ref().unwrap();
+        smooth_color_3d_shader.use_shader();
+        smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
 
         pn_triangle
             .draw(&mut PointNormalTriangleDrawData::new(
