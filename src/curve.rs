@@ -112,7 +112,7 @@ impl Drawable<CubicBezierCurveDrawData<'_>, Error> for CubicBezierCurve {
         imm.begin(
             GPUPrimType::LineStrip,
             self.num_steps,
-            &smooth_color_3d_shader,
+            smooth_color_3d_shader,
         );
 
         (0..self.num_steps).for_each(|t| {
@@ -394,7 +394,7 @@ impl Drawable<PointNormalTriangleDrawData<'_>, Error> for PointNormalTriangle {
         assert!(!indices.is_empty());
         assert!(indices.len() % 3 == 0);
 
-        imm.begin_at_most(GPUPrimType::Tris, indices.len(), &smooth_color_3d_shader);
+        imm.begin_at_most(GPUPrimType::Tris, indices.len(), smooth_color_3d_shader);
 
         for chunk in &indices.iter().chunks(3) {
             let mut use_this = true;
@@ -428,7 +428,7 @@ impl Drawable<PointNormalTriangleDrawData<'_>, Error> for PointNormalTriangle {
             imm.begin_at_most(
                 GPUPrimType::Lines,
                 vertices.len() * 2,
-                &smooth_color_3d_shader,
+                smooth_color_3d_shader,
             );
 
             vertices.iter().for_each(|(u, v, pos, normal)| {

@@ -385,7 +385,7 @@ impl<
         imm.begin(
             GPUPrimType::Lines,
             self.get_edges().len() * 2,
-            &smooth_color_3d_shader,
+            smooth_color_3d_shader,
         );
 
         self.get_edges()
@@ -977,11 +977,11 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
 }
 
 fn apply_model_matrix_vec2(v: &glm::DVec2, model: &glm::DMat4) -> glm::DVec3 {
-    glm::vec4_to_vec3(&(model * math::append_one(&glm::vec2_to_vec3(&v))))
+    glm::vec4_to_vec3(&(model * math::append_one(&glm::vec2_to_vec3(v))))
 }
 
 fn apply_model_matrix_vec3(v: &glm::DVec3, model: &glm::DMat4) -> glm::DVec3 {
-    glm::vec4_to_vec3(&(model * math::append_one(&v)))
+    glm::vec4_to_vec3(&(model * math::append_one(v)))
 }
 
 fn apply_model_matrix_to_normal(normal: &glm::DVec3, model: &glm::DMat4) -> glm::DVec3 {
