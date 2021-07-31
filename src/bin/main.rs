@@ -6,7 +6,6 @@ use mesh_analyzer::blender_mesh_io::MeshUVDrawData;
 use quick_renderer::camera::WindowCamera;
 use quick_renderer::drawable::Drawable;
 use quick_renderer::gpu_immediate::GPUImmediate;
-use quick_renderer::mesh::simple::Mesh;
 use quick_renderer::mesh::{MeshDrawData, MeshUseShader};
 use quick_renderer::shader;
 use quick_renderer::{egui, egui_glfw, gl, glfw, glm};
@@ -64,8 +63,6 @@ fn main() {
         .family_and_size
         .insert(TextStyle::Small, (FontFamily::Proportional, 15.0));
     egui.get_egui_ctx().set_fonts(fonts);
-
-    let mesh = Mesh::read_file("/tmp/test.msgpack").unwrap();
 
     let mut camera = WindowCamera::new(
         glm::vec3(0.0, 0.0, 3.0),
@@ -144,26 +141,28 @@ fn main() {
 
         // Draw mesh
         {
-            directional_light_shader.use_shader();
-            let model = glm::convert(config.get_mesh_transform().get_matrix());
-            directional_light_shader.set_mat4("model\0", &model);
-            mesh.draw(&mut MeshDrawData::new(
-                &mut imm,
-                MeshUseShader::DirectionalLight,
-                None,
-            ))
-            .unwrap();
+            if let Ok(mesh) = config.get_mesh().as_ref() {
+                directional_light_shader.use_shader();
+                let model = glm::convert(config.get_mesh_transform().get_matrix());
+                directional_light_shader.set_mat4("model\0", &model);
+                mesh.draw(&mut MeshDrawData::new(
+                    &mut imm,
+                    MeshUseShader::DirectionalLight,
+                    None,
+                ))
+                .unwrap();
 
-            mesh.draw_uv(&mut MeshUVDrawData::new(
-                &mut imm,
-                &glm::convert(config.get_uv_plane_3d_transform().get_matrix()),
-                &glm::convert(config.get_uv_map_color()),
-            ));
+                mesh.draw_uv(&mut MeshUVDrawData::new(
+                    &mut imm,
+                    &glm::convert(config.get_uv_plane_3d_transform().get_matrix()),
+                    &glm::convert(config.get_uv_map_color()),
+                ));
 
-            smooth_color_3d_shader.use_shader();
-            smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
+                smooth_color_3d_shader.use_shader();
+                smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
 
-            mesh.visualize_config(&config, &mut imm);
+                mesh.visualize_config(&config, &mut imm);
+            };
         }
 
         // GUI starts
@@ -173,8 +172,8 @@ fn main() {
                 .resizable(true)
                 .show(egui.get_egui_ctx(), |ui| {
                     egui::ScrollArea::auto_sized().show(ui, |ui| {
-                        config.draw_ui(&mesh, ui);
-                        config.draw_ui_edit(&mesh, ui);
+                        config.draw_ui(&(), ui);
+                        config.draw_ui_edit(&(), ui);
                     });
                 });
             let (width, height) = window.get_framebuffer_size();

@@ -2,12 +2,14 @@ use std::{fmt::Display, marker::PhantomData};
 
 use quick_renderer::{
     egui::{self, Color32},
-    glm, mesh,
+    glm,
+    mesh::simple,
 };
 
 use crate::{
     draw_ui::DrawUI,
     math::{self, Transform},
+    prelude::MeshExtension,
     ui_widgets,
 };
 
@@ -38,8 +40,11 @@ impl Display for Element {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Config<END, EVD, EED, EFD> {
+    mesh_to_load: String,
+    mesh: Result<simple::Mesh, ()>,
+
     element: Element,
     element_index: usize,
 
@@ -64,6 +69,9 @@ pub struct Config<END, EVD, EED, EFD> {
 impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
     fn default() -> Self {
         Self {
+            mesh_to_load: "/tmp/adaptive_cloth".to_string(),
+            mesh: Err(()),
+
             element: Element::Node,
             element_index: 0,
 
@@ -91,12 +99,24 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
 }
 
 impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
-    type ExtraData = mesh::Mesh<END, EVD, EED, EFD>;
+    type ExtraData = ();
 
     fn draw_ui(&self, _extra_data: &Self::ExtraData, _ui: &mut egui::Ui) {}
 
-    fn draw_ui_edit(&mut self, extra_data: &Self::ExtraData, ui: &mut egui::Ui) {
-        let mesh = extra_data;
+    fn draw_ui_edit(&mut self, _extra_data: &Self::ExtraData, ui: &mut egui::Ui) {
+        ui.text_edit_singleline(&mut self.mesh_to_load);
+
+        if ui.button("Load Mesh").clicked() {
+            self.mesh = simple::Mesh::read_file(&self.mesh_to_load);
+        }
+
+        match self.mesh {
+            Ok(_) => {}
+            Err(err) => {
+                ui.label(format!("Error while loading mesh: {:?}", err));
+            }
+        };
+
         egui::ComboBox::from_label("Element Type")
             .selected_text(format!("{}", self.element))
             .show_ui(ui, |ui| {
@@ -105,12 +125,15 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                 });
             });
 
-        let num_elements = match self.element {
-            Element::Node => mesh.get_nodes().len(),
-            Element::Vert => mesh.get_verts().len(),
-            Element::Edge => mesh.get_edges().len(),
-            Element::Face => mesh.get_faces().len(),
-        };
+        let num_elements = self.mesh.as_ref().ok().map_or_else(
+            || 1,
+            |mesh| match self.element {
+                Element::Node => mesh.get_nodes().len(),
+                Element::Vert => mesh.get_verts().len(),
+                Element::Edge => mesh.get_edges().len(),
+                Element::Face => mesh.get_faces().len(),
+            },
+        );
         ui.add(
             egui::Slider::new(&mut self.element_index, 0..=(num_elements - 1))
                 .clamp_to_range(true)
@@ -149,6 +172,10 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
 }
 
 impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
+    pub fn get_mesh(&self) -> &Result<simple::Mesh, ()> {
+        &self.mesh
+    }
+
     pub fn get_element(&self) -> Element {
         self.element
     }
