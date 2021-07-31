@@ -45,6 +45,8 @@ pub struct Config<END, EVD, EED, EFD> {
     mesh_to_load: String,
     mesh: Result<simple::Mesh, ()>,
 
+    draw_wireframe: bool,
+
     element: Element,
     element_index: usize,
 
@@ -71,6 +73,8 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
         Self {
             mesh_to_load: "/tmp/adaptive_cloth".to_string(),
             mesh: Err(()),
+
+            draw_wireframe: false,
 
             element: Element::Node,
             element_index: 0,
@@ -116,6 +120,8 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                 ui.label(format!("Error while loading mesh: {:?}", err));
             }
         };
+
+        ui.checkbox(&mut self.draw_wireframe, "Draw Wireframe");
 
         egui::ComboBox::from_label("Element Type")
             .selected_text(format!("{}", self.element))
@@ -175,6 +181,10 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
 impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
     pub fn get_mesh(&self) -> &Result<simple::Mesh, ()> {
         &self.mesh
+    }
+
+    pub fn get_draw_wireframe(&self) -> bool {
+        self.draw_wireframe
     }
 
     pub fn get_element(&self) -> Element {

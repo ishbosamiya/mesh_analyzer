@@ -158,6 +158,18 @@ fn main() {
                     &glm::convert(config.get_uv_map_color()),
                 ));
 
+                if config.get_draw_wireframe() {
+                    smooth_color_3d_shader.use_shader();
+                    smooth_color_3d_shader.set_mat4("model\0", &model);
+
+                    mesh.draw_wireframe(&mut MeshDrawData::new(
+                        &mut imm,
+                        MeshUseShader::SmoothColor3D,
+                        Some(glm::vec4(0.8, 0.8, 0.8, 1.0)),
+                    ))
+                    .unwrap();
+                }
+
                 smooth_color_3d_shader.use_shader();
                 smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
 
