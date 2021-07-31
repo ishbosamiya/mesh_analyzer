@@ -48,6 +48,12 @@ pub struct Config<END, EVD, EED, EFD> {
     uv_plane_3d_transform: math::Transform,
     uv_map_color: glm::DVec4,
 
+    node_color: glm::DVec4,
+    vert_color: glm::DVec4,
+    node_vert_connect_color: glm::DVec4,
+    edge_color: glm::DVec4,
+    face_color: (glm::DVec4, glm::DVec4),
+
     mesh_node_extra_data_type: PhantomData<END>,
     mesh_vert_extra_data_type: PhantomData<EVD>,
     mesh_edge_extra_data_type: PhantomData<EED>,
@@ -64,6 +70,15 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
 
             uv_plane_3d_transform: Default::default(),
             uv_map_color: glm::vec4(1.0, 1.0, 1.0, 1.0),
+
+            node_color: glm::vec4(1.0, 0.78, 0.083, 1.0),
+            vert_color: glm::vec4(0.48, 0.13, 1.0, 1.0),
+            node_vert_connect_color: glm::vec4(0.17, 1.0, 0.4, 1.0),
+            edge_color: glm::vec4(0.01, 0.52, 1.0, 1.0),
+            face_color: (
+                glm::vec4(1.0, 0.17, 0.01, 0.4),
+                glm::vec4(0.07, 1.0, 0.4, 0.4),
+            ),
 
             mesh_node_extra_data_type: PhantomData,
             mesh_vert_extra_data_type: PhantomData,
@@ -102,6 +117,18 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
 
         ui.separator();
 
+        color_edit_button_dvec4(ui, "Fancy Node Color", &mut self.node_color);
+        color_edit_button_dvec4(ui, "Fancy Vert Color", &mut self.vert_color);
+        color_edit_button_dvec4(
+            ui,
+            "Fancy Node Vert Connect Color",
+            &mut self.node_vert_connect_color,
+        );
+        color_edit_button_dvec4(ui, "Fancy Edge Color", &mut self.edge_color);
+        color_edit_button_dvec4_range(ui, "Fancy Face Color Range", &mut self.face_color);
+
+        ui.separator();
+
         ui.label("UV Plane Transform");
         ui.add(ui_widgets::Transform::new(&mut self.uv_plane_3d_transform));
         color_edit_button_dvec4(ui, "UV Map Color", &mut self.uv_map_color);
@@ -132,30 +159,66 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
         self.uv_map_color
     }
 
+    pub fn get_node_color(&self) -> glm::DVec4 {
+        self.node_color
+    }
+
+    pub fn get_vert_color(&self) -> glm::DVec4 {
+        self.vert_color
+    }
+
+    pub fn get_node_vert_connect_color(&self) -> glm::DVec4 {
+        self.node_vert_connect_color
+    }
+
+    pub fn get_edge_color(&self) -> glm::DVec4 {
+        self.edge_color
+    }
+
+    pub fn get_face_color(&self) -> (glm::DVec4, glm::DVec4) {
+        self.face_color
+    }
+
     pub fn get_mesh_transform(&self) -> &Transform {
         &self.mesh_transform
     }
 }
 
+fn color_edit_dvec4(ui: &mut egui::Ui, color: &mut glm::DVec4) {
+    let mut color_egui = Color32::from_rgba_premultiplied(
+        (color[0] * 255.0) as _,
+        (color[1] * 255.0) as _,
+        (color[2] * 255.0) as _,
+        (color[3] * 255.0) as _,
+    );
+    egui::color_picker::color_edit_button_srgba(
+        ui,
+        &mut color_egui,
+        egui::color_picker::Alpha::BlendOrAdditive,
+    );
+    *color = glm::vec4(
+        color_egui.r() as f64 / 255.0,
+        color_egui.g() as f64 / 255.0,
+        color_egui.b() as f64 / 255.0,
+        color_egui.a() as f64 / 255.0,
+    );
+}
+
 fn color_edit_button_dvec4(ui: &mut egui::Ui, text: &str, color: &mut glm::DVec4) {
     ui.horizontal(|ui| {
         ui.label(text);
-        let mut color_egui = Color32::from_rgba_premultiplied(
-            (color[0] * 255.0) as _,
-            (color[1] * 255.0) as _,
-            (color[2] * 255.0) as _,
-            (color[3] * 255.0) as _,
-        );
-        egui::color_picker::color_edit_button_srgba(
-            ui,
-            &mut color_egui,
-            egui::color_picker::Alpha::BlendOrAdditive,
-        );
-        *color = glm::vec4(
-            color_egui.r() as f64 / 255.0,
-            color_egui.g() as f64 / 255.0,
-            color_egui.b() as f64 / 255.0,
-            color_egui.a() as f64 / 255.0,
-        );
+        color_edit_dvec4(ui, color);
+    });
+}
+
+fn color_edit_button_dvec4_range(
+    ui: &mut egui::Ui,
+    text: &str,
+    color: &mut (glm::DVec4, glm::DVec4),
+) {
+    ui.horizontal(|ui| {
+        ui.label(text);
+        color_edit_dvec4(ui, &mut color.0);
+        color_edit_dvec4(ui, &mut color.1);
     });
 }
