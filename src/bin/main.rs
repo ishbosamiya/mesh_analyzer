@@ -5,6 +5,7 @@ use glfw::{Action, Context, Key};
 use mesh_analyzer::blender_mesh_io::MeshUVDrawData;
 use quick_renderer::camera::WindowCamera;
 use quick_renderer::drawable::Drawable;
+use quick_renderer::fps::FPS;
 use quick_renderer::gpu_immediate::GPUImmediate;
 use quick_renderer::mesh::{MeshDrawData, MeshUseShader};
 use quick_renderer::shader;
@@ -97,6 +98,8 @@ fn main() {
 
     let mut config = Config::default();
 
+    let mut fps = FPS::default();
+
     while !window.should_close() {
         glfw.poll_events();
 
@@ -184,6 +187,7 @@ fn main() {
                 .resizable(true)
                 .show(egui.get_egui_ctx(), |ui| {
                     egui::ScrollArea::auto_sized().show(ui, |ui| {
+                        ui.label(format!("fps: {:.2}", fps.update_and_get()));
                         config.draw_ui(&(), ui);
                         config.draw_ui_edit(&(), ui);
                     });
