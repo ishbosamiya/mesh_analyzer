@@ -46,6 +46,7 @@ fn main() {
         gl::Enable(gl::DEPTH_TEST);
         gl::Enable(gl::MULTISAMPLE);
         gl::Enable(gl::BLEND);
+        gl::Enable(gl::FRAMEBUFFER_SRGB);
     }
 
     // setup the egui backend
