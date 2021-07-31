@@ -473,7 +473,6 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
         config: &Config<END, EVD, EED, EFD>,
         imm: &mut GPUImmediate,
     ) -> Vec<mesh::VertIndex> {
-        let color = glm::vec4(0.1, 0.8, 0.8, 1.0);
         let normal_pull_factor = 0.2;
 
         let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
@@ -495,7 +494,9 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
                         uv_plane_3d_model_matrix,
                         mesh_model_matrix,
                         imm,
-                        color,
+                        glm::convert(config.get_node_color()),
+                        glm::convert(config.get_vert_color()),
+                        glm::convert(config.get_node_vert_connect_color()),
                         normal_pull_factor,
                     );
                 }
@@ -506,7 +507,6 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
     }
 
     fn visualize_vert(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate) {
-        let color = glm::vec4(0.1, 0.8, 0.8, 1.0);
         let normal_pull_factor = 0.2;
 
         let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
@@ -525,7 +525,7 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
                 edge,
                 uv_plane_3d_model_matrix,
                 imm,
-                color,
+                glm::convert(config.get_edge_color()),
                 normal_pull_factor,
             );
         });
@@ -537,14 +537,14 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
             uv_plane_3d_model_matrix,
             mesh_model_matrix,
             imm,
-            color,
+            glm::convert(config.get_node_color()),
+            glm::convert(config.get_vert_color()),
+            glm::convert(config.get_node_vert_connect_color()),
             normal_pull_factor,
         );
     }
 
     fn visualize_edge(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate) {
-        let edge_color = glm::vec4(0.1, 0.8, 0.8, 0.3);
-        let face_color = glm::vec4(0.8, 0.1, 0.8, 0.3);
         let normal_pull_factor = 0.2;
 
         let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
@@ -560,27 +560,40 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
             edge,
             uv_plane_3d_model_matrix,
             imm,
-            edge_color,
+            glm::convert(config.get_edge_color()),
             normal_pull_factor,
         );
 
-        self.draw_fancy_node_edge(edge, mesh_model_matrix, imm, edge_color, normal_pull_factor);
+        self.draw_fancy_node_edge(
+            edge,
+            mesh_model_matrix,
+            imm,
+            glm::convert(config.get_edge_color()),
+            normal_pull_factor,
+        );
 
-        edge.get_faces().iter().for_each(|face_index| {
-            let face = self.get_face(*face_index).unwrap();
-            self.draw_fancy_face(
-                face,
-                uv_plane_3d_model_matrix,
-                mesh_model_matrix,
-                imm,
-                face_color,
-                normal_pull_factor,
-            );
-        });
+        edge.get_faces()
+            .iter()
+            .enumerate()
+            .for_each(|(i, face_index)| {
+                let face_colors = &config.get_face_color();
+                let face_color = glm::convert(face_colors.0.lerp(
+                    &face_colors.1,
+                    (i as f64 / edge.get_faces().len() as f64).ceil(),
+                ));
+                let face = self.get_face(*face_index).unwrap();
+                self.draw_fancy_face(
+                    face,
+                    uv_plane_3d_model_matrix,
+                    mesh_model_matrix,
+                    imm,
+                    face_color,
+                    normal_pull_factor,
+                );
+            });
     }
 
     fn visualize_face(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate) {
-        let face_color = glm::vec4(0.8, 0.1, 0.8, 0.3);
         let normal_pull_factor = 0.2;
 
         let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
@@ -597,7 +610,7 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
             uv_plane_3d_model_matrix,
             mesh_model_matrix,
             imm,
-            face_color,
+            glm::convert(config.get_face_color().0),
             normal_pull_factor,
         );
     }
@@ -631,7 +644,7 @@ trait MeshDrawFancy<END, EVD, EED, EFD> {
         &self,
         node: &mesh::Node<END>,
         mesh_model_matrix: &glm::DMat4,
-        color: glm::Vec4,
+        node_color: glm::Vec4,
         imm: &mut GPUImmediate,
     );
 
@@ -639,7 +652,7 @@ trait MeshDrawFancy<END, EVD, EED, EFD> {
         &self,
         vert: &mesh::Vert<EVD>,
         uv_plane_3d_model_matrix: &glm::DMat4,
-        color: glm::Vec4,
+        vert_color: glm::Vec4,
         imm: &mut GPUImmediate,
     );
 
@@ -651,7 +664,9 @@ trait MeshDrawFancy<END, EVD, EED, EFD> {
         uv_plane_3d_model_matrix: &glm::DMat4,
         mesh_model_matrix: &glm::DMat4,
         imm: &mut GPUImmediate,
-        color: glm::Vec4,
+        node_color: glm::Vec4,
+        vert_color: glm::Vec4,
+        node_vert_connect_color: glm::Vec4,
         normal_pull_factor: f64,
     );
 
@@ -660,7 +675,7 @@ trait MeshDrawFancy<END, EVD, EED, EFD> {
         edge: &mesh::Edge<EED>,
         uv_plane_3d_model_matrix: &glm::DMat4,
         imm: &mut GPUImmediate,
-        color: glm::Vec4,
+        edge_color: glm::Vec4,
         normal_pull_factor: f64,
     );
 
@@ -669,7 +684,7 @@ trait MeshDrawFancy<END, EVD, EED, EFD> {
         edge: &mesh::Edge<EED>,
         mesh_model_matrix: &glm::DMat4,
         imm: &mut GPUImmediate,
-        color: glm::Vec4,
+        edge_color: glm::Vec4,
         normal_pull_factor: f64,
     );
 
@@ -679,7 +694,7 @@ trait MeshDrawFancy<END, EVD, EED, EFD> {
         uv_plane_3d_model_matrix: &glm::DMat4,
         mesh_model_matrix: &glm::DMat4,
         imm: &mut GPUImmediate,
-        color: glm::Vec4,
+        face_color: glm::Vec4,
         normal_pull_factor: f64,
     );
 }
@@ -689,24 +704,24 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
         &self,
         node: &mesh::Node<END>,
         mesh_model_matrix: &glm::DMat4,
-        color: glm::Vec4,
+        node_color: glm::Vec4,
         imm: &mut GPUImmediate,
     ) {
         let node_pos_applied = apply_model_matrix_vec3(&node.pos, mesh_model_matrix);
-        draw_sphere_at(&node_pos_applied, color, imm);
+        draw_sphere_at(&node_pos_applied, node_color, imm);
     }
 
     fn draw_fancy_vert(
         &self,
         vert: &mesh::Vert<EVD>,
         uv_plane_3d_model_matrix: &glm::DMat4,
-        color: glm::Vec4,
+        vert_color: glm::Vec4,
         imm: &mut GPUImmediate,
     ) {
         let uv = vert.uv.as_ref().unwrap();
         let uv_pos = apply_model_matrix_vec2(uv, uv_plane_3d_model_matrix);
 
-        draw_sphere_at(&uv_pos, color, imm);
+        draw_sphere_at(&uv_pos, vert_color, imm);
     }
 
     fn draw_fancy_node_vert_connect(
@@ -716,11 +731,13 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
         uv_plane_3d_model_matrix: &glm::DMat4,
         mesh_model_matrix: &glm::DMat4,
         imm: &mut GPUImmediate,
-        color: glm::Vec4,
+        node_color: glm::Vec4,
+        vert_color: glm::Vec4,
+        node_vert_connect_color: glm::Vec4,
         normal_pull_factor: f64,
     ) {
-        self.draw_fancy_node(node, mesh_model_matrix, color, imm);
-        self.draw_fancy_vert(vert, uv_plane_3d_model_matrix, color, imm);
+        self.draw_fancy_node(node, mesh_model_matrix, node_color, imm);
+        self.draw_fancy_vert(vert, uv_plane_3d_model_matrix, vert_color, imm);
 
         let uv = vert.uv.as_ref().unwrap();
         let uv_pos = apply_model_matrix_vec2(uv, uv_plane_3d_model_matrix);
@@ -745,7 +762,10 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
         smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
 
         curve
-            .draw(&mut CubicBezierCurveDrawData::new(imm, color))
+            .draw(&mut CubicBezierCurveDrawData::new(
+                imm,
+                node_vert_connect_color,
+            ))
             .unwrap();
     }
 
@@ -754,7 +774,7 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
         edge: &mesh::Edge<EED>,
         uv_plane_3d_model_matrix: &glm::DMat4,
         imm: &mut GPUImmediate,
-        color: glm::Vec4,
+        edge_color: glm::Vec4,
         normal_pull_factor: f64,
     ) {
         let v1_index = edge.get_verts().unwrap().0;
@@ -786,7 +806,7 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
         );
 
         curve
-            .draw(&mut CubicBezierCurveDrawData::new(imm, color))
+            .draw(&mut CubicBezierCurveDrawData::new(imm, edge_color))
             .unwrap();
     }
 
@@ -795,7 +815,7 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
         edge: &mesh::Edge<EED>,
         mesh_model_matrix: &glm::DMat4,
         imm: &mut GPUImmediate,
-        color: glm::Vec4,
+        edge_color: glm::Vec4,
         normal_pull_factor: f64,
     ) {
         let v1_index = edge.get_verts().unwrap().0;
@@ -828,7 +848,7 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
         );
 
         curve
-            .draw(&mut CubicBezierCurveDrawData::new(imm, color))
+            .draw(&mut CubicBezierCurveDrawData::new(imm, edge_color))
             .unwrap();
     }
 
@@ -838,7 +858,7 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
         uv_plane_3d_model_matrix: &glm::DMat4,
         mesh_model_matrix: &glm::DMat4,
         imm: &mut GPUImmediate,
-        color: glm::Vec4,
+        face_color: glm::Vec4,
         normal_pull_factor: f64,
     ) {
         // Currently only support triangles
@@ -889,7 +909,7 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
         pn_triangle
             .draw(&mut PointNormalTriangleDrawData::new(
                 imm,
-                color,
+                face_color,
                 false,
                 0.2,
                 glm::vec4(1.0, 0.0, 0.0, 1.0),
@@ -937,7 +957,7 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
             pn_triangle
                 .draw(&mut PointNormalTriangleDrawData::new(
                     imm,
-                    color,
+                    face_color,
                     false,
                     0.2,
                     glm::vec4(1.0, 0.0, 0.0, 1.0),
