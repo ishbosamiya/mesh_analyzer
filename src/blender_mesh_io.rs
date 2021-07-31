@@ -473,8 +473,6 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
         config: &Config<END, EVD, EED, EFD>,
         imm: &mut GPUImmediate,
     ) -> Vec<mesh::VertIndex> {
-        let normal_pull_factor = 0.2;
-
         let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
         let mesh_model_matrix = &config.get_mesh_transform().get_matrix();
 
@@ -497,7 +495,7 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
                         glm::convert(config.get_node_color()),
                         glm::convert(config.get_vert_color()),
                         glm::convert(config.get_node_vert_connect_color()),
-                        normal_pull_factor,
+                        config.get_normal_pull_factor(),
                     );
                 }
                 None => no_uv_verts.push(*vert_index),
@@ -507,8 +505,6 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
     }
 
     fn visualize_vert(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate) {
-        let normal_pull_factor = 0.2;
-
         let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
         let mesh_model_matrix = &config.get_mesh_transform().get_matrix();
 
@@ -526,7 +522,7 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
                 uv_plane_3d_model_matrix,
                 imm,
                 glm::convert(config.get_edge_color()),
-                normal_pull_factor,
+                config.get_normal_pull_factor(),
             );
         });
 
@@ -540,13 +536,11 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
             glm::convert(config.get_node_color()),
             glm::convert(config.get_vert_color()),
             glm::convert(config.get_node_vert_connect_color()),
-            normal_pull_factor,
+            config.get_normal_pull_factor(),
         );
     }
 
     fn visualize_edge(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate) {
-        let normal_pull_factor = 0.2;
-
         let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
         let mesh_model_matrix = &config.get_mesh_transform().get_matrix();
 
@@ -561,7 +555,7 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
             uv_plane_3d_model_matrix,
             imm,
             glm::convert(config.get_edge_color()),
-            normal_pull_factor,
+            config.get_normal_pull_factor(),
         );
 
         self.draw_fancy_node_edge(
@@ -569,7 +563,7 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
             mesh_model_matrix,
             imm,
             glm::convert(config.get_edge_color()),
-            normal_pull_factor,
+            config.get_normal_pull_factor(),
         );
 
         edge.get_faces()
@@ -588,14 +582,12 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
                     mesh_model_matrix,
                     imm,
                     face_color,
-                    normal_pull_factor,
+                    config.get_normal_pull_factor(),
                 );
             });
     }
 
     fn visualize_face(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate) {
-        let normal_pull_factor = 0.2;
-
         let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
         let mesh_model_matrix = &config.get_mesh_transform().get_matrix();
 
@@ -611,7 +603,7 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
             mesh_model_matrix,
             imm,
             glm::convert(config.get_face_color().0),
-            normal_pull_factor,
+            config.get_normal_pull_factor(),
         );
     }
 }

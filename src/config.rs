@@ -53,6 +53,7 @@ pub struct Config<END, EVD, EED, EFD> {
     node_vert_connect_color: glm::DVec4,
     edge_color: glm::DVec4,
     face_color: (glm::DVec4, glm::DVec4),
+    normal_pull_factor: f64,
 
     mesh_node_extra_data_type: PhantomData<END>,
     mesh_vert_extra_data_type: PhantomData<EVD>,
@@ -79,6 +80,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
                 glm::vec4(1.0, 0.17, 0.01, 0.4),
                 glm::vec4(0.07, 1.0, 0.4, 0.4),
             ),
+            normal_pull_factor: 0.2,
 
             mesh_node_extra_data_type: PhantomData,
             mesh_vert_extra_data_type: PhantomData,
@@ -126,6 +128,10 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
         );
         color_edit_button_dvec4(ui, "Fancy Edge Color", &mut self.edge_color);
         color_edit_button_dvec4_range(ui, "Fancy Face Color Range", &mut self.face_color);
+        ui.add(
+            egui::Slider::new(&mut self.normal_pull_factor, 0.0..=3.0)
+                .text("Bendiness of the fancy edges and faces"),
+        );
 
         ui.separator();
 
@@ -177,6 +183,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
     pub fn get_face_color(&self) -> (glm::DVec4, glm::DVec4) {
         self.face_color
+    }
+
+    pub fn get_normal_pull_factor(&self) -> f64 {
+        self.normal_pull_factor
     }
 
     pub fn get_mesh_transform(&self) -> &Transform {
