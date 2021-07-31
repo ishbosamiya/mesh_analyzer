@@ -413,22 +413,20 @@ impl<
     }
 
     fn visualize_config(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate) {
-        let uv_plane_3d_model_matrix = config.get_uv_plane_3d_transform().get_matrix();
-        let mesh_model_matrix = config.get_mesh_transform().get_matrix();
         match config.get_element() {
             crate::config::Element::Node => {
                 // TODO(ish): handle showing which verts couldn't be
                 // visualized
-                self.visualize_node(config, &uv_plane_3d_model_matrix, &mesh_model_matrix, imm);
+                self.visualize_node(config, imm);
             }
             crate::config::Element::Vert => {
-                self.visualize_vert(config, &uv_plane_3d_model_matrix, &mesh_model_matrix, imm);
+                self.visualize_vert(config, imm);
             }
             crate::config::Element::Edge => {
-                self.visualize_edge(config, &uv_plane_3d_model_matrix, &mesh_model_matrix, imm);
+                self.visualize_edge(config, imm);
             }
             crate::config::Element::Face => {
-                self.visualize_face(config, &uv_plane_3d_model_matrix, &mesh_model_matrix, imm);
+                self.visualize_face(config, imm);
             }
         }
     }
@@ -442,8 +440,6 @@ trait MeshExtensionPrivate<END, EVD, EED, EFD> {
     fn visualize_node(
         &self,
         config: &Config<END, EVD, EED, EFD>,
-        uv_plane_3d_model_matrix: &glm::DMat4,
-        mesh_model_matrix: &glm::DMat4,
         imm: &mut GPUImmediate,
     ) -> Vec<mesh::VertIndex>;
 
@@ -452,39 +448,21 @@ trait MeshExtensionPrivate<END, EVD, EED, EFD> {
     ///
     /// It returns back all the edges and node that cannot be visualized.
     /// TODO(ish): the returning part
-    fn visualize_vert(
-        &self,
-        config: &Config<END, EVD, EED, EFD>,
-        uv_plane_3d_model_matrix: &glm::DMat4,
-        mesh_model_matrix: &glm::DMat4,
-        imm: &mut GPUImmediate,
-    );
+    fn visualize_vert(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate);
 
     /// Tries to visualize all the links stored in the edge
     /// that refer to it.
     ///
     /// It returns back all the verts and faces that cannot be visualized.
     /// TODO(ish): the returning part
-    fn visualize_edge(
-        &self,
-        config: &Config<END, EVD, EED, EFD>,
-        uv_plane_3d_model_matrix: &glm::DMat4,
-        mesh_model_matrix: &glm::DMat4,
-        imm: &mut GPUImmediate,
-    );
+    fn visualize_edge(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate);
 
     /// Tries to visualize all the links stored in the face
     /// that refer to it.
     ///
     /// It returns back all the references that cannot be visualized.
     /// TODO(ish): the returning part
-    fn visualize_face(
-        &self,
-        config: &Config<END, EVD, EED, EFD>,
-        uv_plane_3d_model_matrix: &glm::DMat4,
-        mesh_model_matrix: &glm::DMat4,
-        imm: &mut GPUImmediate,
-    );
+    fn visualize_face(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate);
 }
 
 impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
@@ -493,12 +471,13 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
     fn visualize_node(
         &self,
         config: &Config<END, EVD, EED, EFD>,
-        uv_plane_3d_model_matrix: &glm::DMat4,
-        mesh_model_matrix: &glm::DMat4,
         imm: &mut GPUImmediate,
     ) -> Vec<mesh::VertIndex> {
         let color = glm::vec4(0.1, 0.8, 0.8, 1.0);
         let normal_pull_factor = 0.2;
+
+        let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
+        let mesh_model_matrix = &config.get_mesh_transform().get_matrix();
 
         let mut no_uv_verts = Vec::new();
         let node = self
@@ -526,15 +505,12 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
         no_uv_verts
     }
 
-    fn visualize_vert(
-        &self,
-        config: &Config<END, EVD, EED, EFD>,
-        uv_plane_3d_model_matrix: &glm::DMat4,
-        mesh_model_matrix: &glm::DMat4,
-        imm: &mut GPUImmediate,
-    ) {
+    fn visualize_vert(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate) {
         let color = glm::vec4(0.1, 0.8, 0.8, 1.0);
         let normal_pull_factor = 0.2;
+
+        let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
+        let mesh_model_matrix = &config.get_mesh_transform().get_matrix();
 
         let vert = self
             .get_verts()
@@ -566,16 +542,13 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
         );
     }
 
-    fn visualize_edge(
-        &self,
-        config: &Config<END, EVD, EED, EFD>,
-        uv_plane_3d_model_matrix: &glm::DMat4,
-        mesh_model_matrix: &glm::DMat4,
-        imm: &mut GPUImmediate,
-    ) {
+    fn visualize_edge(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate) {
         let edge_color = glm::vec4(0.1, 0.8, 0.8, 0.3);
         let face_color = glm::vec4(0.8, 0.1, 0.8, 0.3);
         let normal_pull_factor = 0.2;
+
+        let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
+        let mesh_model_matrix = &config.get_mesh_transform().get_matrix();
 
         let edge = self
             .get_edges()
@@ -606,21 +579,19 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
         });
     }
 
-    fn visualize_face(
-        &self,
-        config: &Config<END, EVD, EED, EFD>,
-        uv_plane_3d_model_matrix: &glm::DMat4,
-        mesh_model_matrix: &glm::DMat4,
-        imm: &mut GPUImmediate,
-    ) {
+    fn visualize_face(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate) {
+        let face_color = glm::vec4(0.8, 0.1, 0.8, 0.3);
+        let normal_pull_factor = 0.2;
+
+        let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
+        let mesh_model_matrix = &config.get_mesh_transform().get_matrix();
+
         let face = self
             .get_faces()
             .get_unknown_gen(config.get_element_index())
             .unwrap()
             .0;
 
-        let face_color = glm::vec4(0.8, 0.1, 0.8, 0.3);
-        let normal_pull_factor = 0.2;
         self.draw_fancy_face(
             face,
             uv_plane_3d_model_matrix,
