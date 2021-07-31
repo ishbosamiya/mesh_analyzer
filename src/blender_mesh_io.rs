@@ -336,7 +336,7 @@ impl<
     fn read_file<P: AsRef<Path>>(path: P) -> Result<Self, ()> {
         match path.as_ref().extension() {
             Some(extension) => match extension.to_str().unwrap() {
-                "msgpack" => Self::read_msgpack(path),
+                "mesh" => Self::read_msgpack(path),
                 _ => Err(()),
             },
             None => Err(()),
