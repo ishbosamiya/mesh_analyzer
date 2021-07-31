@@ -134,6 +134,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                 Element::Face => mesh.get_faces().len(),
             },
         );
+        let num_elements = num_elements.max(1);
         ui.add(
             egui::Slider::new(&mut self.element_index, 0..=(num_elements - 1))
                 .clamp_to_range(true)
