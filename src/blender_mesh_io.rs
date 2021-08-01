@@ -28,37 +28,63 @@ mod io_structs {
     use crate::util;
 
     #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-    pub(super) struct Float3 {
+    pub(crate) struct Float3 {
         x: f32,
         y: f32,
         z: f32,
     }
 
     #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-    pub(super) struct Float2 {
+    pub(crate) struct Float2 {
         x: f32,
         y: f32,
     }
 
+    #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+    pub(crate) struct Float2x2 {
+        values: [[f32; 2]; 2],
+    }
+
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-    pub(super) struct Index {
+    pub(crate) struct Index {
         index: usize,
         generation: usize,
     }
 
-    pub(super) type NodeIndex = Index;
-    pub(super) type VertIndex = Index;
-    pub(super) type EdgeIndex = Index;
-    pub(super) type FaceIndex = Index;
+    #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+    pub(crate) struct NodeData<T> {
+        extra_data: T,
+    }
 
-    pub(super) type IncidentVerts = Vec<VertIndex>;
-    pub(super) type IncidentEdges = Vec<EdgeIndex>;
-    pub(super) type IncidentFaces = Vec<FaceIndex>;
-    pub(super) type AdjacentVerts = IncidentVerts;
-    pub(super) type EdgeVerts = (VertIndex, VertIndex);
+    #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+    pub(crate) struct Sizing {
+        m: Float2x2,
+    }
+
+    #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+    pub(crate) struct VertData {
+        sizing: Sizing,
+        flag: i32,
+    }
+
+    #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+    pub(crate) struct EdgeData {
+        size: f32,
+    }
+
+    pub(crate) type NodeIndex = Index;
+    pub(crate) type VertIndex = Index;
+    pub(crate) type EdgeIndex = Index;
+    pub(crate) type FaceIndex = Index;
+
+    pub(crate) type IncidentVerts = Vec<VertIndex>;
+    pub(crate) type IncidentEdges = Vec<EdgeIndex>;
+    pub(crate) type IncidentFaces = Vec<FaceIndex>;
+    pub(crate) type AdjacentVerts = IncidentVerts;
+    pub(crate) type EdgeVerts = (VertIndex, VertIndex);
 
     #[derive(Debug, Serialize, Deserialize)]
-    pub(super) struct Node<T> {
+    pub(crate) struct Node<T> {
         self_index: NodeIndex,
         verts: IncidentVerts,
 
@@ -68,7 +94,7 @@ mod io_structs {
     }
 
     #[derive(Debug, Serialize, Deserialize)]
-    pub(super) struct Vert<T> {
+    pub(crate) struct Vert<T> {
         self_index: VertIndex,
         edges: IncidentEdges,
         node: Option<NodeIndex>,
@@ -78,7 +104,7 @@ mod io_structs {
     }
 
     #[derive(Debug, Serialize, Deserialize)]
-    pub(super) struct Edge<T> {
+    pub(crate) struct Edge<T> {
         self_index: EdgeIndex,
         faces: IncidentFaces,
         verts: Option<EdgeVerts>,
@@ -87,7 +113,7 @@ mod io_structs {
     }
 
     #[derive(Debug, Serialize, Deserialize)]
-    pub(super) struct Face<T> {
+    pub(crate) struct Face<T> {
         self_index: FaceIndex,
         verts: AdjacentVerts,
 
@@ -96,7 +122,7 @@ mod io_structs {
     }
 
     #[derive(Debug, Serialize, Deserialize)]
-    pub(super) struct Mesh<END, EVD, EED, EFD> {
+    pub(crate) struct Mesh<END, EVD, EED, EFD> {
         nodes: Vec<Node<END>>,
         verts: Vec<Vert<EVD>>,
         edges: Vec<Edge<EED>>,
@@ -107,6 +133,8 @@ mod io_structs {
         edge_pos_index_map: HashMap<EdgeIndex, usize>,
         face_pos_index_map: HashMap<FaceIndex, usize>,
     }
+
+    // pub(crate) type AdaptiveMesh<END> = Mesh<NodeData<END>, VertData, EdgeData, ()>;
 
     impl From<Float3> for glm::DVec3 {
         fn from(float3: Float3) -> Self {
