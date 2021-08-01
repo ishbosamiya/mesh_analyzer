@@ -415,6 +415,27 @@ impl<
             });
 
         imm.end();
+
+        // draw the faces
+        imm.begin(
+            GPUPrimType::Tris,
+            self.get_faces().len() * 3,
+            smooth_color_3d_shader,
+        );
+
+        self.get_faces().iter().for_each(|(_, face)| {
+            assert_eq!(face.get_verts().len(), 3);
+            face.get_verts().iter().for_each(|vert_index| {
+                let vert = self.get_vert(*vert_index).unwrap();
+
+                let uv_pos: glm::Vec3 = glm::convert(glm::vec2_to_vec3(vert.uv.as_ref().unwrap()));
+
+                imm.attr_4f(color_attr, 0.6, 0.6, 0.6, 0.03);
+                imm.vertex_3f(pos_attr, uv_pos[0], uv_pos[1], uv_pos[2]);
+            });
+        });
+
+        imm.end();
     }
 
     fn visualize_config(
