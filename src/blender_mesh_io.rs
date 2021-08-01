@@ -2,7 +2,6 @@ use quick_renderer::mesh::builtins::get_ico_sphere_subd_00;
 use quick_renderer::mesh::MeshDrawData;
 use quick_renderer::shader::builtins::get_smooth_color_3d_shader;
 use rmps::Deserializer;
-use serde::Deserialize;
 
 use std::fmt::Display;
 use std::path::Path;
@@ -383,7 +382,8 @@ impl<
 
         let mut de = Deserializer::new(std::io::Cursor::new(&file));
 
-        let meshio: io_structs::Mesh<END, EVD, EED, EFD> = Deserialize::deserialize(&mut de)?;
+        let meshio: io_structs::Mesh<END, EVD, EED, EFD> =
+            serde_path_to_error::deserialize(&mut de)?;
 
         let mesh: Self = meshio.into();
 
@@ -497,7 +497,7 @@ impl<
 #[derive(Debug)]
 pub enum MeshExtensionError {
     NoElementAtIndex(usize),
-    DeserializationError(rmps::decode::Error),
+    DeserializationError(serde_path_to_error::Error<rmps::decode::Error>),
     FileExtensionUnknown,
     NoFileExtension,
     NoMesh,
@@ -527,8 +527,8 @@ impl Display for MeshExtensionError {
     }
 }
 
-impl From<rmps::decode::Error> for MeshExtensionError {
-    fn from(error: rmps::decode::Error) -> Self {
+impl From<serde_path_to_error::Error<rmps::decode::Error>> for MeshExtensionError {
+    fn from(error: serde_path_to_error::Error<rmps::decode::Error>) -> Self {
         Self::DeserializationError(error)
     }
 }

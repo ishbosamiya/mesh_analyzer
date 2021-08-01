@@ -42,7 +42,8 @@ impl Display for Element {
     }
 }
 
-type ResultMesh = Result<EmptyAdaptiveMesh, MeshExtensionError>;
+type MeshType = EmptyAdaptiveMesh;
+type ResultMesh = Result<MeshType, MeshExtensionError>;
 
 #[derive(Debug)]
 pub struct LoadedMesh {
@@ -139,7 +140,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
         ui.horizontal(|ui| {
             if ui.button("Load Mesh").clicked() {
                 self.meshes = vec![LoadedMesh::new(
-                    EmptyAdaptiveMesh::read_file(&self.meshes_to_load),
+                    MeshType::read_file(&self.meshes_to_load),
                     self.meshes_to_load.to_string(),
                 )];
             }
@@ -153,7 +154,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                         .map(|location| {
                             let location = location.unwrap().path();
                             LoadedMesh::new(
-                                EmptyAdaptiveMesh::read_file(&location),
+                                MeshType::read_file(&location),
                                 location.to_str().unwrap().to_string(),
                             )
                         })

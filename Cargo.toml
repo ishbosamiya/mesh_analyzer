@@ -14,6 +14,7 @@ generational-arena = "0.2"
 lazy_static = "1.4"
 num-traits = "0.2"
 itertools = "0.10"
+serde_path_to_error = "0.1"
 
 [patch."ssh://git@github.com/ishbosamiya/quick_renderer.git"]
 quick_renderer = { path = "../../../quick_renderer/" }
