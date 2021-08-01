@@ -8,6 +8,7 @@ use quick_renderer::{
 };
 
 use crate::{
+    blender_mesh_io::MeshExtensionError,
     draw_ui::DrawUI,
     math::{self, Transform},
     prelude::MeshExtension,
@@ -41,7 +42,7 @@ impl Display for Element {
     }
 }
 
-type ResultMesh = Result<simple::Mesh, ()>;
+type ResultMesh = Result<simple::Mesh, MeshExtensionError>;
 
 #[derive(Debug)]
 pub struct LoadedMesh {
@@ -182,7 +183,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                     Some(mesh)
                 }
                 Err(err) => {
-                    ui.label(format!("Error while loading mesh: {:?}", err));
+                    ui.label(format!("Error while loading mesh: {}", err));
                     None
                 }
             },
@@ -206,7 +207,10 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                 });
             });
 
-        let mesh = self.get_mesh().as_ref().ok();
+        let mesh = match self.meshes.get(self.mesh_index) {
+            Some(loaded_mesh) => loaded_mesh.get_mesh().as_ref().ok(),
+            None => None,
+        };
 
         let num_elements = mesh.map_or_else(
             || 1,
@@ -256,10 +260,11 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
 }
 
 impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
-    pub fn get_mesh(&self) -> &Result<simple::Mesh, ()> {
-        self.meshes
-            .get(self.mesh_index)
-            .map_or(&Err(()), |loaded_mesh| loaded_mesh.get_mesh())
+    pub fn get_mesh(&self) -> Result<&ResultMesh, MeshExtensionError> {
+        self.meshes.get(self.mesh_index).map_or(
+            Err(MeshExtensionError::NoElementAtIndex(self.mesh_index)),
+            |loaded_mesh| Ok(loaded_mesh.get_mesh()),
+        )
     }
 
     pub fn get_draw_wireframe(&self) -> bool {

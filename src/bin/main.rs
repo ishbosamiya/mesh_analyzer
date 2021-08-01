@@ -145,7 +145,7 @@ fn main() {
         let mesh_errors_maybe;
         // Draw mesh
         {
-            if let Ok(mesh) = config.get_mesh().as_ref() {
+            if let Ok(Ok(mesh)) = config.get_mesh().as_ref() {
                 directional_light_shader.use_shader();
                 let model = glm::convert(config.get_mesh_transform().get_matrix());
                 directional_light_shader.set_mat4("model\0", &model);

@@ -364,24 +364,24 @@ impl<
         EFD: serde::Deserialize<'de> + std::fmt::Debug,
     > MeshExtension<'de, END, EVD, EED, EFD> for mesh::Mesh<END, EVD, EED, EFD>
 {
-    type Error = ();
+    type Error = MeshExtensionError;
 
-    fn read_file<P: AsRef<Path>>(path: P) -> Result<Self, ()> {
+    fn read_file<P: AsRef<Path>>(path: P) -> Result<Self, MeshExtensionError> {
         match path.as_ref().extension() {
             Some(extension) => match extension.to_str().unwrap() {
                 "mesh" => Self::read_msgpack(path),
-                _ => Err(()),
+                _ => Err(MeshExtensionError::FileExtensionUnknown),
             },
-            None => Err(()),
+            None => Err(MeshExtensionError::NoFileExtension),
         }
     }
-    fn read_msgpack<P: AsRef<Path>>(path: P) -> Result<Self, ()> {
+
+    fn read_msgpack<P: AsRef<Path>>(path: P) -> Result<Self, MeshExtensionError> {
         let file = std::fs::read(path).unwrap();
 
         let mut de = Deserializer::new(std::io::Cursor::new(&file));
 
-        let meshio: io_structs::Mesh<END, EVD, EED, EFD> =
-            Deserialize::deserialize(&mut de).unwrap();
+        let meshio: io_structs::Mesh<END, EVD, EED, EFD> = Deserialize::deserialize(&mut de)?;
 
         let mesh: Self = meshio.into();
 
@@ -492,9 +492,12 @@ impl<
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug)]
 pub enum MeshExtensionError {
     NoElementAtIndex(usize),
+    DeserializationError(rmps::decode::Error),
+    FileExtensionUnknown,
+    NoFileExtension,
 }
 
 impl std::error::Error for MeshExtensionError {}
@@ -503,9 +506,24 @@ impl Display for MeshExtensionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             MeshExtensionError::NoElementAtIndex(index) => {
-                write!(f, "No Element at Index: {}", index)
+                write!(f, "No element at index: {}", index)
+            }
+            MeshExtensionError::DeserializationError(error) => {
+                write!(f, "Deserialization error: {}", error)
+            }
+            MeshExtensionError::FileExtensionUnknown => {
+                write!(f, "File extension unknown")
+            }
+            MeshExtensionError::NoFileExtension => {
+                write!(f, "No file extension so probably not a file")
             }
         }
+    }
+}
+
+impl From<rmps::decode::Error> for MeshExtensionError {
+    fn from(error: rmps::decode::Error) -> Self {
+        Self::DeserializationError(error)
     }
 }
 
