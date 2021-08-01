@@ -196,6 +196,8 @@ fn main() {
                                 "Some error(s) while trying to visualize the mesh: {}",
                                 error
                             ));
+                        } else {
+                            ui.label("Visualizing the mesh :)");
                         }
                         config.draw_ui(&(), ui);
                         config.draw_ui_edit(&(), ui);
