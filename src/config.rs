@@ -1,5 +1,6 @@
-use std::{fmt::Display, marker::PhantomData};
+use std::{fmt::Display, marker::PhantomData, path::Path};
 
+use itertools::Itertools;
 use quick_renderer::{
     egui::{self, Color32},
     glm,
@@ -40,10 +41,33 @@ impl Display for Element {
     }
 }
 
+type ResultMesh = Result<simple::Mesh, ()>;
+
+#[derive(Debug)]
+pub struct LoadedMesh {
+    mesh: ResultMesh,
+    location: String,
+}
+
+impl LoadedMesh {
+    pub fn new(mesh: ResultMesh, location: String) -> Self {
+        Self { mesh, location }
+    }
+
+    pub fn get_mesh(&self) -> &ResultMesh {
+        &self.mesh
+    }
+
+    pub fn get_location(&self) -> &str {
+        &self.location
+    }
+}
+
 #[derive(Debug)]
 pub struct Config<END, EVD, EED, EFD> {
-    mesh_to_load: String,
-    mesh: Result<simple::Mesh, ()>,
+    meshes_to_load: String,
+    meshes: Vec<LoadedMesh>,
+    mesh_index: usize,
 
     draw_wireframe: bool,
 
@@ -71,8 +95,9 @@ pub struct Config<END, EVD, EED, EFD> {
 impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
     fn default() -> Self {
         Self {
-            mesh_to_load: "/tmp/adaptive_cloth/collapse_edge_0_0_post.mesh".to_string(),
-            mesh: Err(()),
+            meshes_to_load: "/tmp/adaptive_cloth/collapse_edge_0_0_post.mesh".to_string(),
+            meshes: Vec::new(),
+            mesh_index: 0,
 
             draw_wireframe: false,
 
@@ -108,16 +133,66 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
     fn draw_ui(&self, _extra_data: &Self::ExtraData, _ui: &mut egui::Ui) {}
 
     fn draw_ui_edit(&mut self, _extra_data: &Self::ExtraData, ui: &mut egui::Ui) {
-        ui.text_edit_singleline(&mut self.mesh_to_load);
+        ui.text_edit_singleline(&mut self.meshes_to_load);
 
-        if ui.button("Load Mesh").clicked() {
-            self.mesh = simple::Mesh::read_file(&self.mesh_to_load);
-        }
+        ui.horizontal(|ui| {
+            if ui.button("Load Mesh").clicked() {
+                self.meshes = vec![LoadedMesh::new(
+                    simple::Mesh::read_file(&self.meshes_to_load),
+                    self.meshes_to_load.to_string(),
+                )];
+            }
+            if ui.button("Load Folder").clicked() {
+                let path = Path::new(&self.meshes_to_load);
 
-        match self.mesh {
-            Ok(_) => {}
-            Err(err) => {
-                ui.label(format!("Error while loading mesh: {:?}", err));
+                if path.is_dir() {
+                    self.meshes = path
+                        .read_dir()
+                        .unwrap()
+                        .map(|location| {
+                            let location = location.unwrap().path();
+                            LoadedMesh::new(
+                                simple::Mesh::read_file(&location),
+                                location.to_str().unwrap().to_string(),
+                            )
+                        })
+                        .sorted_by(|lm1, lm2| Ord::cmp(lm1.get_location(), lm2.get_location()))
+                        .collect();
+                } else {
+                    self.meshes = Vec::new();
+                }
+            }
+        });
+
+        ui.add(
+            egui::Slider::new(&mut self.mesh_index, 0..=(self.meshes.len().max(1) - 1))
+                .clamp_to_range(true)
+                .text("Mesh Index"),
+        );
+
+        let op_mesh = self.meshes.get(self.mesh_index);
+
+        match op_mesh {
+            Some(loaded_mesh) => match loaded_mesh.get_mesh() {
+                Ok(mesh) => {
+                    ui.label(format!(
+                        "Currently loaded mesh from file {}",
+                        loaded_mesh.get_location()
+                    ));
+                    Some(mesh)
+                }
+                Err(err) => {
+                    ui.label(format!("Error while loading mesh: {:?}", err));
+                    None
+                }
+            },
+            None => {
+                ui.label(format!(
+                    "Couldn't find mesh at index: {}, loaded {} meshes",
+                    self.mesh_index,
+                    self.meshes.len()
+                ));
+                None
             }
         };
 
@@ -131,7 +206,9 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                 });
             });
 
-        let num_elements = self.mesh.as_ref().ok().map_or_else(
+        let mesh = self.get_mesh().as_ref().ok();
+
+        let num_elements = mesh.map_or_else(
             || 1,
             |mesh| match self.element {
                 Element::Node => mesh.get_nodes().len(),
@@ -180,7 +257,9 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
 
 impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
     pub fn get_mesh(&self) -> &Result<simple::Mesh, ()> {
-        &self.mesh
+        self.meshes
+            .get(self.mesh_index)
+            .map_or(&Err(()), |loaded_mesh| loaded_mesh.get_mesh())
     }
 
     pub fn get_draw_wireframe(&self) -> bool {
