@@ -27,7 +27,7 @@ fn main() {
 
     // creating window
     let (mut window, events) = glfw
-        .create_window(1280, 720, "Simple Render", glfw::WindowMode::Windowed)
+        .create_window(1280, 720, "Mesh Analyzer", glfw::WindowMode::Windowed)
         .expect("ERROR: glfw window creation failed");
 
     // setup bunch of polling data
