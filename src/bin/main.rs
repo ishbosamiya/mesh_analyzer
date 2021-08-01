@@ -142,6 +142,7 @@ fn main() {
             }
         }
 
+        let mesh_errors_maybe;
         // Draw mesh
         {
             if let Ok(mesh) = config.get_mesh().as_ref() {
@@ -176,8 +177,10 @@ fn main() {
                 smooth_color_3d_shader.use_shader();
                 smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
 
-                mesh.visualize_config(&config, &mut imm);
-            };
+                mesh_errors_maybe = mesh.visualize_config(&config, &mut imm);
+            } else {
+                mesh_errors_maybe = Ok(());
+            }
         }
 
         // GUI starts
@@ -188,6 +191,12 @@ fn main() {
                 .show(egui.get_egui_ctx(), |ui| {
                     egui::ScrollArea::auto_sized().show(ui, |ui| {
                         ui.label(format!("fps: {:.2}", fps.update_and_get()));
+                        if let Err(error) = mesh_errors_maybe {
+                            ui.label(format!(
+                                "Some error(s) while trying to visualize the mesh: {}",
+                                error
+                            ));
+                        }
                         config.draw_ui(&(), ui);
                         config.draw_ui_edit(&(), ui);
                     });

@@ -71,7 +71,7 @@ pub struct Config<END, EVD, EED, EFD> {
 impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
     fn default() -> Self {
         Self {
-            mesh_to_load: "/tmp/adaptive_cloth".to_string(),
+            mesh_to_load: "/tmp/adaptive_cloth/collapse_edge_0_0_post.mesh".to_string(),
             mesh: Err(()),
 
             draw_wireframe: false,

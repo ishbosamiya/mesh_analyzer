@@ -4,6 +4,7 @@ use quick_renderer::shader::builtins::get_smooth_color_3d_shader;
 use rmps::Deserializer;
 use serde::Deserialize;
 
+use std::fmt::Display;
 use std::path::Path;
 
 use quick_renderer::drawable::Drawable;
@@ -320,7 +321,11 @@ pub trait MeshExtension<'de, END, EVD, EED, EFD> {
     fn draw_uv(&self, draw_data: &mut MeshUVDrawData);
 
     /// Visualizes the configuration given
-    fn visualize_config(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate);
+    fn visualize_config(
+        &self,
+        config: &Config<END, EVD, EED, EFD>,
+        imm: &mut GPUImmediate,
+    ) -> Result<(), MeshExtensionError>;
 }
 
 impl<
@@ -412,21 +417,44 @@ impl<
         imm.end();
     }
 
-    fn visualize_config(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate) {
+    fn visualize_config(
+        &self,
+        config: &Config<END, EVD, EED, EFD>,
+        imm: &mut GPUImmediate,
+    ) -> Result<(), MeshExtensionError> {
         match config.get_element() {
             crate::config::Element::Node => {
                 // TODO(ish): handle showing which verts couldn't be
                 // visualized
-                self.visualize_node(config, imm);
+                self.visualize_node(config, imm)?;
             }
             crate::config::Element::Vert => {
-                self.visualize_vert(config, imm);
+                self.visualize_vert(config, imm)?;
             }
             crate::config::Element::Edge => {
-                self.visualize_edge(config, imm);
+                self.visualize_edge(config, imm)?;
             }
             crate::config::Element::Face => {
-                self.visualize_face(config, imm);
+                self.visualize_face(config, imm)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum MeshExtensionError {
+    NoElementAtIndex(usize),
+}
+
+impl std::error::Error for MeshExtensionError {}
+
+impl Display for MeshExtensionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MeshExtensionError::NoElementAtIndex(index) => {
+                write!(f, "No Element at Index: {}", index)
             }
         }
     }
@@ -441,28 +469,40 @@ trait MeshExtensionPrivate<END, EVD, EED, EFD> {
         &self,
         config: &Config<END, EVD, EED, EFD>,
         imm: &mut GPUImmediate,
-    ) -> Vec<mesh::VertIndex>;
+    ) -> Result<Vec<mesh::VertIndex>, MeshExtensionError>;
 
     /// Tries to visualize all the links stored in the vert
     /// that refer to it.
     ///
     /// It returns back all the edges and node that cannot be visualized.
     /// TODO(ish): the returning part
-    fn visualize_vert(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate);
+    fn visualize_vert(
+        &self,
+        config: &Config<END, EVD, EED, EFD>,
+        imm: &mut GPUImmediate,
+    ) -> Result<(), MeshExtensionError>;
 
     /// Tries to visualize all the links stored in the edge
     /// that refer to it.
     ///
     /// It returns back all the verts and faces that cannot be visualized.
     /// TODO(ish): the returning part
-    fn visualize_edge(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate);
+    fn visualize_edge(
+        &self,
+        config: &Config<END, EVD, EED, EFD>,
+        imm: &mut GPUImmediate,
+    ) -> Result<(), MeshExtensionError>;
 
     /// Tries to visualize all the links stored in the face
     /// that refer to it.
     ///
     /// It returns back all the references that cannot be visualized.
     /// TODO(ish): the returning part
-    fn visualize_face(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate);
+    fn visualize_face(
+        &self,
+        config: &Config<END, EVD, EED, EFD>,
+        imm: &mut GPUImmediate,
+    ) -> Result<(), MeshExtensionError>;
 }
 
 impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
@@ -472,7 +512,7 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
         &self,
         config: &Config<END, EVD, EED, EFD>,
         imm: &mut GPUImmediate,
-    ) -> Vec<mesh::VertIndex> {
+    ) -> Result<Vec<mesh::VertIndex>, MeshExtensionError> {
         let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
         let mesh_model_matrix = &config.get_mesh_transform().get_matrix();
 
@@ -480,7 +520,7 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
         let node = self
             .get_nodes()
             .get_unknown_gen(config.get_element_index())
-            .unwrap()
+            .ok_or_else(|| MeshExtensionError::NoElementAtIndex(config.get_element_index()))?
             .0;
         node.get_verts().iter().for_each(|vert_index| {
             let vert = self.get_vert(*vert_index).unwrap();
@@ -501,17 +541,21 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
                 None => no_uv_verts.push(*vert_index),
             }
         });
-        no_uv_verts
+        Ok(no_uv_verts)
     }
 
-    fn visualize_vert(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate) {
+    fn visualize_vert(
+        &self,
+        config: &Config<END, EVD, EED, EFD>,
+        imm: &mut GPUImmediate,
+    ) -> Result<(), MeshExtensionError> {
         let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
         let mesh_model_matrix = &config.get_mesh_transform().get_matrix();
 
         let vert = self
             .get_verts()
             .get_unknown_gen(config.get_element_index())
-            .unwrap()
+            .ok_or_else(|| MeshExtensionError::NoElementAtIndex(config.get_element_index()))?
             .0;
 
         vert.get_edges().iter().for_each(|edge_index| {
@@ -538,16 +582,22 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
             glm::convert(config.get_node_vert_connect_color()),
             config.get_normal_pull_factor(),
         );
+
+        Ok(())
     }
 
-    fn visualize_edge(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate) {
+    fn visualize_edge(
+        &self,
+        config: &Config<END, EVD, EED, EFD>,
+        imm: &mut GPUImmediate,
+    ) -> Result<(), MeshExtensionError> {
         let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
         let mesh_model_matrix = &config.get_mesh_transform().get_matrix();
 
         let edge = self
             .get_edges()
             .get_unknown_gen(config.get_element_index())
-            .unwrap()
+            .ok_or_else(|| MeshExtensionError::NoElementAtIndex(config.get_element_index()))?
             .0;
 
         self.draw_fancy_edge(
@@ -585,16 +635,22 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
                     config.get_normal_pull_factor(),
                 );
             });
+
+        Ok(())
     }
 
-    fn visualize_face(&self, config: &Config<END, EVD, EED, EFD>, imm: &mut GPUImmediate) {
+    fn visualize_face(
+        &self,
+        config: &Config<END, EVD, EED, EFD>,
+        imm: &mut GPUImmediate,
+    ) -> Result<(), MeshExtensionError> {
         let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
         let mesh_model_matrix = &config.get_mesh_transform().get_matrix();
 
         let face = self
             .get_faces()
             .get_unknown_gen(config.get_element_index())
-            .unwrap()
+            .ok_or_else(|| MeshExtensionError::NoElementAtIndex(config.get_element_index()))?
             .0;
 
         self.draw_fancy_face(
@@ -605,6 +661,8 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
             glm::convert(config.get_face_color().0),
             config.get_normal_pull_factor(),
         );
+
+        Ok(())
     }
 }
 
