@@ -2,7 +2,7 @@ use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
 
-use mesh_analyzer::blender_mesh_io::MeshUVDrawData;
+use mesh_analyzer::blender_mesh_io::{MeshExtensionError, MeshUVDrawData};
 use quick_renderer::camera::WindowCamera;
 use quick_renderer::drawable::Drawable;
 use quick_renderer::fps::FPS;
@@ -142,44 +142,50 @@ fn main() {
             }
         }
 
-        let mesh_errors_maybe;
+        let mesh_errors_maybe: Result<(), MeshExtensionError>;
         // Draw mesh
         {
-            if let Ok(Ok(mesh)) = config.get_mesh().as_ref() {
-                directional_light_shader.use_shader();
-                let model = glm::convert(config.get_mesh_transform().get_matrix());
-                directional_light_shader.set_mat4("model\0", &model);
-                mesh.draw(&mut MeshDrawData::new(
-                    &mut imm,
-                    MeshUseShader::DirectionalLight,
-                    None,
-                ))
-                .unwrap();
+            match config.get_mesh() {
+                Ok(result_mesh) => match result_mesh {
+                    Ok(mesh) => {
+                        directional_light_shader.use_shader();
+                        let model = glm::convert(config.get_mesh_transform().get_matrix());
+                        directional_light_shader.set_mat4("model\0", &model);
+                        mesh.draw(&mut MeshDrawData::new(
+                            &mut imm,
+                            MeshUseShader::DirectionalLight,
+                            None,
+                        ))
+                        .unwrap();
 
-                mesh.draw_uv(&mut MeshUVDrawData::new(
-                    &mut imm,
-                    &glm::convert(config.get_uv_plane_3d_transform().get_matrix()),
-                    &glm::convert(config.get_uv_map_color()),
-                ));
+                        mesh.draw_uv(&mut MeshUVDrawData::new(
+                            &mut imm,
+                            &glm::convert(config.get_uv_plane_3d_transform().get_matrix()),
+                            &glm::convert(config.get_uv_map_color()),
+                        ));
 
-                if config.get_draw_wireframe() {
-                    smooth_color_3d_shader.use_shader();
-                    smooth_color_3d_shader.set_mat4("model\0", &model);
+                        if config.get_draw_wireframe() {
+                            smooth_color_3d_shader.use_shader();
+                            smooth_color_3d_shader.set_mat4("model\0", &model);
 
-                    mesh.draw_wireframe(&mut MeshDrawData::new(
-                        &mut imm,
-                        MeshUseShader::SmoothColor3D,
-                        Some(glm::vec4(0.8, 0.8, 0.8, 1.0)),
-                    ))
-                    .unwrap();
+                            mesh.draw_wireframe(&mut MeshDrawData::new(
+                                &mut imm,
+                                MeshUseShader::SmoothColor3D,
+                                Some(glm::vec4(0.8, 0.8, 0.8, 1.0)),
+                            ))
+                            .unwrap();
+                        }
+
+                        smooth_color_3d_shader.use_shader();
+                        smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
+
+                        mesh_errors_maybe = mesh.visualize_config(&config, &mut imm);
+                    }
+                    Err(_) => mesh_errors_maybe = Err(MeshExtensionError::NoMesh),
+                },
+                Err(error) => {
+                    mesh_errors_maybe = Err(error);
                 }
-
-                smooth_color_3d_shader.use_shader();
-                smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
-
-                mesh_errors_maybe = mesh.visualize_config(&config, &mut imm);
-            } else {
-                mesh_errors_maybe = Ok(());
             }
         }
 

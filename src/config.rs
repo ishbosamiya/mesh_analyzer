@@ -1,10 +1,10 @@
 use std::{fmt::Display, marker::PhantomData, path::Path};
 
+use crate::blender_mesh_io::EmptyAdaptiveMesh;
 use itertools::Itertools;
 use quick_renderer::{
     egui::{self, Color32},
     glm,
-    mesh::simple,
 };
 
 use crate::{
@@ -42,7 +42,7 @@ impl Display for Element {
     }
 }
 
-type ResultMesh = Result<simple::Mesh, MeshExtensionError>;
+type ResultMesh = Result<EmptyAdaptiveMesh, MeshExtensionError>;
 
 #[derive(Debug)]
 pub struct LoadedMesh {
@@ -139,7 +139,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
         ui.horizontal(|ui| {
             if ui.button("Load Mesh").clicked() {
                 self.meshes = vec![LoadedMesh::new(
-                    simple::Mesh::read_file(&self.meshes_to_load),
+                    EmptyAdaptiveMesh::read_file(&self.meshes_to_load),
                     self.meshes_to_load.to_string(),
                 )];
             }
@@ -153,7 +153,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                         .map(|location| {
                             let location = location.unwrap().path();
                             LoadedMesh::new(
-                                simple::Mesh::read_file(&location),
+                                EmptyAdaptiveMesh::read_file(&location),
                                 location.to_str().unwrap().to_string(),
                             )
                         })

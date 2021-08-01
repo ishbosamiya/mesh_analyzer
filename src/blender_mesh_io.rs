@@ -18,7 +18,7 @@ use crate::{
     curve::{CubicBezierCurve, CubicBezierCurveDrawData},
 };
 
-mod io_structs {
+pub(crate) mod io_structs {
     use std::collections::HashMap;
 
     use generational_arena::Arena;
@@ -28,63 +28,63 @@ mod io_structs {
     use crate::util;
 
     #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-    pub(crate) struct Float3 {
+    pub struct Float3 {
         x: f32,
         y: f32,
         z: f32,
     }
 
     #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-    pub(crate) struct Float2 {
+    pub struct Float2 {
         x: f32,
         y: f32,
     }
 
     #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-    pub(crate) struct Float2x2 {
+    pub struct Float2x2 {
         values: [[f32; 2]; 2],
     }
 
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-    pub(crate) struct Index {
+    pub struct Index {
         index: usize,
         generation: usize,
     }
 
     #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-    pub(crate) struct NodeData<T> {
+    pub struct NodeData<T> {
         extra_data: T,
     }
 
     #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-    pub(crate) struct Sizing {
+    pub struct Sizing {
         m: Float2x2,
     }
 
     #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-    pub(crate) struct VertData {
+    pub struct VertData {
         sizing: Sizing,
         flag: i32,
     }
 
     #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-    pub(crate) struct EdgeData {
+    pub struct EdgeData {
         size: f32,
     }
 
-    pub(crate) type NodeIndex = Index;
-    pub(crate) type VertIndex = Index;
-    pub(crate) type EdgeIndex = Index;
-    pub(crate) type FaceIndex = Index;
+    pub type NodeIndex = Index;
+    pub type VertIndex = Index;
+    pub type EdgeIndex = Index;
+    pub type FaceIndex = Index;
 
-    pub(crate) type IncidentVerts = Vec<VertIndex>;
-    pub(crate) type IncidentEdges = Vec<EdgeIndex>;
-    pub(crate) type IncidentFaces = Vec<FaceIndex>;
-    pub(crate) type AdjacentVerts = IncidentVerts;
-    pub(crate) type EdgeVerts = (VertIndex, VertIndex);
+    pub type IncidentVerts = Vec<VertIndex>;
+    pub type IncidentEdges = Vec<EdgeIndex>;
+    pub type IncidentFaces = Vec<FaceIndex>;
+    pub type AdjacentVerts = IncidentVerts;
+    pub type EdgeVerts = (VertIndex, VertIndex);
 
     #[derive(Debug, Serialize, Deserialize)]
-    pub(crate) struct Node<T> {
+    pub struct Node<T> {
         self_index: NodeIndex,
         verts: IncidentVerts,
 
@@ -94,7 +94,7 @@ mod io_structs {
     }
 
     #[derive(Debug, Serialize, Deserialize)]
-    pub(crate) struct Vert<T> {
+    pub struct Vert<T> {
         self_index: VertIndex,
         edges: IncidentEdges,
         node: Option<NodeIndex>,
@@ -104,7 +104,7 @@ mod io_structs {
     }
 
     #[derive(Debug, Serialize, Deserialize)]
-    pub(crate) struct Edge<T> {
+    pub struct Edge<T> {
         self_index: EdgeIndex,
         faces: IncidentFaces,
         verts: Option<EdgeVerts>,
@@ -113,7 +113,7 @@ mod io_structs {
     }
 
     #[derive(Debug, Serialize, Deserialize)]
-    pub(crate) struct Face<T> {
+    pub struct Face<T> {
         self_index: FaceIndex,
         verts: AdjacentVerts,
 
@@ -122,7 +122,7 @@ mod io_structs {
     }
 
     #[derive(Debug, Serialize, Deserialize)]
-    pub(crate) struct Mesh<END, EVD, EED, EFD> {
+    pub struct Mesh<END, EVD, EED, EFD> {
         nodes: Vec<Node<END>>,
         verts: Vec<Vert<EVD>>,
         edges: Vec<Edge<EED>>,
@@ -133,8 +133,6 @@ mod io_structs {
         edge_pos_index_map: HashMap<EdgeIndex, usize>,
         face_pos_index_map: HashMap<FaceIndex, usize>,
     }
-
-    // pub(crate) type AdaptiveMesh<END> = Mesh<NodeData<END>, VertData, EdgeData, ()>;
 
     impl From<Float3> for glm::DVec3 {
         fn from(float3: Float3) -> Self {
@@ -315,6 +313,10 @@ mod io_structs {
         }
     }
 }
+
+pub type AdaptiveMesh<END> =
+    mesh::Mesh<io_structs::NodeData<END>, io_structs::VertData, io_structs::EdgeData, ()>;
+pub type EmptyAdaptiveMesh = AdaptiveMesh<()>;
 
 pub struct MeshUVDrawData<'a> {
     imm: &'a mut GPUImmediate,
@@ -498,6 +500,7 @@ pub enum MeshExtensionError {
     DeserializationError(rmps::decode::Error),
     FileExtensionUnknown,
     NoFileExtension,
+    NoMesh,
 }
 
 impl std::error::Error for MeshExtensionError {}
@@ -516,6 +519,9 @@ impl Display for MeshExtensionError {
             }
             MeshExtensionError::NoFileExtension => {
                 write!(f, "No file extension so probably not a file")
+            }
+            MeshExtensionError::NoMesh => {
+                write!(f, "No mesh available")
             }
         }
     }
