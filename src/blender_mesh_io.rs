@@ -573,7 +573,7 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
                 let face_colors = &config.get_face_color();
                 let face_color = glm::convert(face_colors.0.lerp(
                     &face_colors.1,
-                    (i as f64 / edge.get_faces().len() as f64).ceil(),
+                    i as f64 / (edge.get_faces().len() - 1).max(1) as f64,
                 ));
                 let face = self.get_face(*face_index).unwrap();
                 self.draw_fancy_face(
