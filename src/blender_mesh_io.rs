@@ -41,7 +41,10 @@ pub(crate) mod io_structs {
 
     #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
     pub struct Float2x2 {
-        values: [[f32; 2]; 2],
+        m00: f32,
+        m01: f32,
+        m10: f32,
+        m11: f32,
     }
 
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -50,25 +53,34 @@ pub(crate) mod io_structs {
         generation: usize,
     }
 
-    #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub struct NodeData<T> {
+        node_data_str: String,
         extra_data: T,
     }
 
-    #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub struct Sizing {
+        sizing_str: String,
         m: Float2x2,
     }
 
-    #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub struct VertData {
+        vert_data_str: String,
         sizing: Sizing,
         flag: i32,
     }
 
-    #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub struct EdgeData {
+        edge_data_str: String,
         size: f32,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    pub struct EmptyExtraData {
+        empty_extra_data_str: String,
     }
 
     pub type NodeIndex = Index;
@@ -122,14 +134,22 @@ pub(crate) mod io_structs {
 
     #[derive(Debug, Serialize, Deserialize)]
     pub struct Mesh<END, EVD, EED, EFD> {
+        nodes_str: String,
         nodes: Vec<Node<END>>,
+        verts_str: String,
         verts: Vec<Vert<EVD>>,
+        edges_str: String,
         edges: Vec<Edge<EED>>,
+        faces_str: String,
         faces: Vec<Face<EFD>>,
 
+        nodes_map_str: String,
         node_pos_index_map: HashMap<NodeIndex, usize>,
+        verts_map_str: String,
         vert_pos_index_map: HashMap<VertIndex, usize>,
+        edges_map_str: String,
         edge_pos_index_map: HashMap<EdgeIndex, usize>,
+        faces_map_str: String,
         face_pos_index_map: HashMap<FaceIndex, usize>,
     }
 
@@ -313,9 +333,13 @@ pub(crate) mod io_structs {
     }
 }
 
-pub type AdaptiveMesh<END> =
-    mesh::Mesh<io_structs::NodeData<END>, io_structs::VertData, io_structs::EdgeData, ()>;
-pub type EmptyAdaptiveMesh = AdaptiveMesh<()>;
+pub type AdaptiveMesh<END> = mesh::Mesh<
+    io_structs::NodeData<END>,
+    io_structs::VertData,
+    io_structs::EdgeData,
+    io_structs::EmptyExtraData,
+>;
+pub type EmptyAdaptiveMesh = AdaptiveMesh<io_structs::EmptyExtraData>;
 
 pub struct MeshUVDrawData<'a> {
     imm: &'a mut GPUImmediate,
