@@ -184,7 +184,11 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                     Some(mesh)
                 }
                 Err(err) => {
-                    ui.label(format!("Error while loading mesh: {}", err));
+                    ui.label(format!(
+                        "Error while loading mesh from {}: {}",
+                        loaded_mesh.get_location(),
+                        err
+                    ));
                     None
                 }
             },
