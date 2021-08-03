@@ -96,7 +96,7 @@ pub struct Config<END, EVD, EED, EFD> {
 impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
     fn default() -> Self {
         Self {
-            meshes_to_load: "/tmp/static_remesh/".to_string(),
+            meshes_to_load: "/tmp/adaptive_cloth/".to_string(),
             meshes: Vec::new(),
             mesh_index: 0,
 
