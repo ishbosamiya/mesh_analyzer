@@ -429,19 +429,63 @@ impl DrawUI for MeshElementReferences {
     fn draw_ui(&self, _extra_data: &Self::ExtraData, ui: &mut quick_renderer::egui::Ui) {
         ui.horizontal(|ui| {
             ui.label("Node");
-            ui.label(format!("{:?}", self.nodes));
+            ui.label(self.nodes.as_ref().map_or_else(
+                || "None".to_string(),
+                |nodes| {
+                    format!(
+                        "{:?}",
+                        nodes
+                            .iter()
+                            .map(|node_index| node_index.0.into_raw_parts().0)
+                            .collect::<Vec<_>>()
+                    )
+                },
+            ));
         });
         ui.horizontal(|ui| {
             ui.label("Vert");
-            ui.label(format!("{:?}", self.verts));
+            ui.label(self.verts.as_ref().map_or_else(
+                || "None".to_string(),
+                |verts| {
+                    format!(
+                        "{:?}",
+                        verts
+                            .iter()
+                            .map(|vert_index| vert_index.0.into_raw_parts().0)
+                            .collect::<Vec<_>>()
+                    )
+                },
+            ));
         });
         ui.horizontal(|ui| {
             ui.label("Edge");
-            ui.label(format!("{:?}", self.edges));
+            ui.label(self.edges.as_ref().map_or_else(
+                || "None".to_string(),
+                |edges| {
+                    format!(
+                        "{:?}",
+                        edges
+                            .iter()
+                            .map(|edge_index| edge_index.0.into_raw_parts().0)
+                            .collect::<Vec<_>>()
+                    )
+                },
+            ));
         });
         ui.horizontal(|ui| {
             ui.label("Face");
-            ui.label(format!("{:?}", self.faces));
+            ui.label(self.faces.as_ref().map_or_else(
+                || "None".to_string(),
+                |faces| {
+                    format!(
+                        "{:?}",
+                        faces
+                            .iter()
+                            .map(|face_index| face_index.0.into_raw_parts().0)
+                            .collect::<Vec<_>>()
+                    )
+                },
+            ));
         });
     }
 
