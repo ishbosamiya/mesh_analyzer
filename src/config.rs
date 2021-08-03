@@ -71,6 +71,7 @@ pub struct Config<END, EVD, EED, EFD> {
     mesh_index: usize,
 
     draw_wireframe: bool,
+    draw_loose_edges: bool,
 
     element: Element,
     element_index: usize,
@@ -84,6 +85,7 @@ pub struct Config<END, EVD, EED, EFD> {
     vert_color: glm::DVec4,
     node_vert_connect_color: glm::DVec4,
     edge_color: glm::DVec4,
+    loose_edge_color: glm::DVec4,
     face_color: (glm::DVec4, glm::DVec4),
     normal_pull_factor: f64,
 
@@ -101,6 +103,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             mesh_index: 0,
 
             draw_wireframe: false,
+            draw_loose_edges: false,
 
             element: Element::Node,
             element_index: 0,
@@ -114,6 +117,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             vert_color: glm::vec4(0.48, 0.13, 1.0, 1.0),
             node_vert_connect_color: glm::vec4(0.17, 1.0, 0.4, 1.0),
             edge_color: glm::vec4(0.01, 0.52, 1.0, 1.0),
+            loose_edge_color: glm::vec4(1.0, 0.2, 0.6, 1.0),
             face_color: (
                 glm::vec4(1.0, 0.17, 0.01, 0.4),
                 glm::vec4(0.07, 1.0, 0.4, 0.4),
@@ -202,6 +206,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
         };
 
         ui.checkbox(&mut self.draw_wireframe, "Draw Wireframe");
+        ui.checkbox(&mut self.draw_loose_edges, "Draw Loose Edges");
 
         egui::ComboBox::from_label("Element Type")
             .selected_text(format!("{}", self.element))
@@ -244,6 +249,17 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                         ui.label(format!("Got error: {}", err));
                     }
                 }
+
+                if self.draw_loose_edges {
+                    ui.label(format!(
+                        "Loose Edges: {:?}",
+                        mesh.get_edges()
+                            .iter()
+                            .filter(|(_, edge)| edge.is_loose())
+                            .map(|(_, edge)| { edge.get_self_index().0.into_raw_parts().0 })
+                            .collect_vec()
+                    ));
+                }
             }
         });
 
@@ -257,6 +273,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             &mut self.node_vert_connect_color,
         );
         color_edit_button_dvec4(ui, "Fancy Edge Color", &mut self.edge_color);
+        color_edit_button_dvec4(ui, "Loose Fancy Edge Color", &mut self.loose_edge_color);
         color_edit_button_dvec4_range(ui, "Fancy Face Color Range", &mut self.face_color);
         ui.add(
             egui::Slider::new(&mut self.normal_pull_factor, 0.0..=3.0)
@@ -290,6 +307,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
         self.draw_wireframe
     }
 
+    pub fn get_draw_loose_edges(&self) -> bool {
+        self.draw_loose_edges
+    }
+
     pub fn get_element(&self) -> Element {
         self.element
     }
@@ -320,6 +341,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
     pub fn get_edge_color(&self) -> glm::DVec4 {
         self.edge_color
+    }
+
+    pub fn get_loose_edge_color(&self) -> glm::DVec4 {
+        self.loose_edge_color
     }
 
     pub fn get_face_color(&self) -> (glm::DVec4, glm::DVec4) {

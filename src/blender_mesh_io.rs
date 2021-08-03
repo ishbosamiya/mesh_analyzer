@@ -678,6 +678,22 @@ impl<
         config: &Config<END, EVD, EED, EFD>,
         imm: &mut GPUImmediate,
     ) -> Result<(), MeshExtensionError> {
+        if config.get_draw_loose_edges() {
+            let uv_plane_3d_model_matrix = config.get_uv_plane_3d_transform().get_matrix();
+            self.get_edges()
+                .iter()
+                .filter(|(_, edge)| edge.is_loose())
+                .for_each(|(_, edge)| {
+                    self.draw_fancy_edge(
+                        edge,
+                        &uv_plane_3d_model_matrix,
+                        imm,
+                        glm::convert(config.get_loose_edge_color()),
+                        config.get_normal_pull_factor(),
+                    );
+                });
+        }
+
         match config.get_element() {
             crate::config::Element::Node => {
                 // TODO(ish): handle showing which verts couldn't be
