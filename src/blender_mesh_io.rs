@@ -11,7 +11,8 @@ use quick_renderer::gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, 
 use quick_renderer::{glm, mesh, shader};
 
 use crate::curve::{PointNormalTriangle, PointNormalTriangleDrawData};
-use crate::math;
+use crate::prelude::DrawUI;
+use crate::{config, math};
 use crate::{
     config::Config,
     curve::{CubicBezierCurve, CubicBezierCurveDrawData},
@@ -361,6 +362,94 @@ impl<'a> MeshUVDrawData<'a> {
     }
 }
 
+pub struct MeshElementReferences {
+    pub nodes: Option<Vec<mesh::NodeIndex>>,
+    pub verts: Option<Vec<mesh::VertIndex>>,
+    pub edges: Option<Vec<mesh::EdgeIndex>>,
+    pub faces: Option<Vec<mesh::FaceIndex>>,
+}
+
+impl MeshElementReferences {
+    pub fn new(
+        nodes: Vec<mesh::NodeIndex>,
+        verts: Vec<mesh::VertIndex>,
+        edges: Vec<mesh::EdgeIndex>,
+        faces: Vec<mesh::FaceIndex>,
+    ) -> Self {
+        Self {
+            nodes: Some(nodes),
+            verts: Some(verts),
+            edges: Some(edges),
+            faces: Some(faces),
+        }
+    }
+
+    pub fn from_node<T>(node: &mesh::Node<T>) -> Self {
+        Self {
+            nodes: None,
+            verts: (!node.get_verts().is_empty()).then(|| node.get_verts().clone()),
+            edges: None,
+            faces: None,
+        }
+    }
+
+    pub fn from_vert<T>(vert: &mesh::Vert<T>) -> Self {
+        Self {
+            nodes: vert.get_node().map(|node_index| vec![node_index]),
+            verts: None,
+            edges: (!vert.get_edges().is_empty()).then(|| vert.get_edges().clone()),
+            faces: None,
+        }
+    }
+
+    pub fn from_edge<T>(edge: &mesh::Edge<T>) -> Self {
+        Self {
+            nodes: None,
+            verts: edge
+                .get_verts()
+                .map(|(vert_index_1, vert_index_2)| vec![vert_index_1, vert_index_2]),
+            edges: None,
+            faces: (!edge.get_faces().is_empty()).then(|| edge.get_faces().clone()),
+        }
+    }
+
+    pub fn from_face<T>(face: &mesh::Face<T>) -> Self {
+        Self {
+            nodes: None,
+            verts: (!face.get_verts().is_empty()).then(|| face.get_verts().clone()),
+            edges: None,
+            faces: None,
+        }
+    }
+}
+
+impl DrawUI for MeshElementReferences {
+    type ExtraData = ();
+
+    fn draw_ui(&self, _extra_data: &Self::ExtraData, ui: &mut quick_renderer::egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.label("Node");
+            ui.label(format!("{:?}", self.nodes));
+        });
+        ui.horizontal(|ui| {
+            ui.label("Vert");
+            ui.label(format!("{:?}", self.verts));
+        });
+        ui.horizontal(|ui| {
+            ui.label("Edge");
+            ui.label(format!("{:?}", self.edges));
+        });
+        ui.horizontal(|ui| {
+            ui.label("Face");
+            ui.label(format!("{:?}", self.faces));
+        });
+    }
+
+    fn draw_ui_edit(&mut self, _extra_data: &Self::ExtraData, _ui: &mut quick_renderer::egui::Ui) {
+        unreachable!()
+    }
+}
+
 pub trait MeshExtension<'de, END, EVD, EED, EFD> {
     type Error;
 
@@ -373,12 +462,28 @@ pub trait MeshExtension<'de, END, EVD, EED, EFD> {
 
     fn draw_uv(&self, draw_data: &mut MeshUVDrawData);
 
+    fn get_node_unknown_gen(&self, index: usize) -> Result<&mesh::Node<END>, MeshExtensionError>;
+    fn get_vert_unknown_gen(&self, index: usize) -> Result<&mesh::Vert<EVD>, MeshExtensionError>;
+    fn get_edge_unknown_gen(&self, index: usize) -> Result<&mesh::Edge<EED>, MeshExtensionError>;
+    fn get_face_unknown_gen(&self, index: usize) -> Result<&mesh::Face<EFD>, MeshExtensionError>;
+
     /// Visualizes the configuration given
     fn visualize_config(
         &self,
         config: &Config<END, EVD, EED, EFD>,
         imm: &mut GPUImmediate,
     ) -> Result<(), MeshExtensionError>;
+
+    /// Gives the set of references for the given element and element_index
+    ///
+    /// # Example
+    ///
+    /// Node stores, references to the verts alone, so only that will be populated
+    fn get_references_in_element(
+        &self,
+        element: config::Element,
+        element_index: usize,
+    ) -> Result<MeshElementReferences, MeshExtensionError>;
 }
 
 impl<
@@ -492,6 +597,38 @@ impl<
         imm.end();
     }
 
+    fn get_node_unknown_gen(&self, index: usize) -> Result<&mesh::Node<END>, MeshExtensionError> {
+        Ok(self
+            .get_nodes()
+            .get_unknown_gen(index)
+            .ok_or(MeshExtensionError::NoElementAtIndex(index))?
+            .0)
+    }
+
+    fn get_vert_unknown_gen(&self, index: usize) -> Result<&mesh::Vert<EVD>, MeshExtensionError> {
+        Ok(self
+            .get_verts()
+            .get_unknown_gen(index)
+            .ok_or(MeshExtensionError::NoElementAtIndex(index))?
+            .0)
+    }
+
+    fn get_edge_unknown_gen(&self, index: usize) -> Result<&mesh::Edge<EED>, MeshExtensionError> {
+        Ok(self
+            .get_edges()
+            .get_unknown_gen(index)
+            .ok_or(MeshExtensionError::NoElementAtIndex(index))?
+            .0)
+    }
+
+    fn get_face_unknown_gen(&self, index: usize) -> Result<&mesh::Face<EFD>, MeshExtensionError> {
+        Ok(self
+            .get_faces()
+            .get_unknown_gen(index)
+            .ok_or(MeshExtensionError::NoElementAtIndex(index))?
+            .0)
+    }
+
     fn visualize_config(
         &self,
         config: &Config<END, EVD, EED, EFD>,
@@ -515,6 +652,31 @@ impl<
         }
 
         Ok(())
+    }
+
+    fn get_references_in_element(
+        &self,
+        element: config::Element,
+        element_index: usize,
+    ) -> Result<MeshElementReferences, MeshExtensionError> {
+        match element {
+            crate::config::Element::Node => {
+                let node = self.get_node_unknown_gen(element_index)?;
+                Ok(MeshElementReferences::from_node(node))
+            }
+            crate::config::Element::Vert => {
+                let vert = self.get_vert_unknown_gen(element_index)?;
+                Ok(MeshElementReferences::from_vert(vert))
+            }
+            crate::config::Element::Edge => {
+                let edge = self.get_edge_unknown_gen(element_index)?;
+                Ok(MeshElementReferences::from_edge(edge))
+            }
+            crate::config::Element::Face => {
+                let face = self.get_face_unknown_gen(element_index)?;
+                Ok(MeshElementReferences::from_face(face))
+            }
+        }
     }
 }
 

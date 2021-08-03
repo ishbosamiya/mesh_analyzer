@@ -1,6 +1,5 @@
 use std::{fmt::Display, marker::PhantomData, path::Path};
 
-use crate::blender_mesh_io::EmptyAdaptiveMesh;
 use itertools::Itertools;
 use quick_renderer::{
     egui::{self, Color32},
@@ -8,7 +7,7 @@ use quick_renderer::{
 };
 
 use crate::{
-    blender_mesh_io::MeshExtensionError,
+    blender_mesh_io::{EmptyAdaptiveMesh, MeshExtensionError},
     draw_ui::DrawUI,
     math::{self, Transform},
     prelude::MeshExtension,
@@ -232,6 +231,21 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                 .clamp_to_range(true)
                 .text("Element Index"),
         );
+
+        egui::Window::new("Element references").show(ui.ctx(), |ui| {
+            if let Some(mesh) = mesh {
+                let references_res =
+                    mesh.get_references_in_element(self.get_element(), self.get_element_index());
+                match references_res {
+                    Ok(references) => {
+                        references.draw_ui(&(), ui);
+                    }
+                    Err(err) => {
+                        ui.label(format!("Got error: {}", err));
+                    }
+                }
+            }
+        });
 
         ui.separator();
 
