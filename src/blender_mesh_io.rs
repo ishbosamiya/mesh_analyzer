@@ -518,10 +518,10 @@ impl<
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MeshExtensionError {
     NoElementAtIndex(usize),
-    DeserializationError(serde_path_to_error::Error<rmps::decode::Error>),
+    DeserializationError(String),
     FileExtensionUnknown,
     NoFileExtension,
     NoMesh,
@@ -553,7 +553,7 @@ impl Display for MeshExtensionError {
 
 impl From<serde_path_to_error::Error<rmps::decode::Error>> for MeshExtensionError {
     fn from(error: serde_path_to_error::Error<rmps::decode::Error>) -> Self {
-        Self::DeserializationError(error)
+        Self::DeserializationError(error.to_string())
     }
 }
 
