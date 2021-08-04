@@ -2,6 +2,7 @@ use quick_renderer::mesh::builtins::get_ico_sphere_subd_00;
 use quick_renderer::mesh::MeshDrawData;
 use quick_renderer::shader::builtins::get_smooth_color_3d_shader;
 use rmps::Deserializer;
+use serde::{Deserialize, Serialize};
 
 use std::fmt::Display;
 use std::path::Path;
@@ -740,7 +741,7 @@ impl<
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MeshExtensionError {
     NoElementAtIndex(usize),
     DeserializationError(String),

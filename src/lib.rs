@@ -10,4 +10,5 @@ pub mod util;
 extern crate lazy_static;
 extern crate rmp_serde as rmps;
 extern crate serde;
+extern crate serde_json;
 extern crate serde_path_to_error;

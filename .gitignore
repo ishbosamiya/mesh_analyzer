@@ -9,3 +9,4 @@ temp/
 peda-session*.*
 .testing/
 Cargo.lock
+/mesh_analyzer.config

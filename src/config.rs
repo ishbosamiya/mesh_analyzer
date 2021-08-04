@@ -5,6 +5,7 @@ use quick_renderer::{
     egui::{self, Color32},
     glm,
 };
+use serde::{Deserialize, Serialize};
 
 use crate::{
     blender_mesh_io::{EmptyAdaptiveMesh, MeshExtensionError},
@@ -14,12 +15,18 @@ use crate::{
     ui_widgets,
 };
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Element {
     Node,
     Vert,
     Edge,
     Face,
+}
+
+impl Default for Element {
+    fn default() -> Self {
+        Self::Node
+    }
 }
 
 impl Element {
@@ -44,7 +51,7 @@ impl Display for Element {
 type MeshType = EmptyAdaptiveMesh;
 type ResultMesh = Result<MeshType, MeshExtensionError>;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LoadedMesh {
     mesh: ResultMesh,
     location: String,
@@ -64,16 +71,20 @@ impl LoadedMesh {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Config<END, EVD, EED, EFD> {
     meshes_to_load: String,
+    #[serde(skip)]
     meshes: Vec<LoadedMesh>,
+    #[serde(skip)]
     mesh_index: usize,
 
     draw_wireframe: bool,
     draw_loose_edges: bool,
 
+    #[serde(skip)]
     element: Element,
+    #[serde(skip)]
     element_index: usize,
 
     mesh_transform: math::Transform,
@@ -296,6 +307,18 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
 }
 
 impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
+    #[allow(clippy::result_unit_err)]
+    pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, ()> {
+        let config_file = std::fs::read(path).map_err(|err| {
+            println!("error reading file: {}", err);
+        })?;
+        let config: Self = serde_json::from_slice(&config_file).map_err(|err| {
+            println!("error deserializing file: {}", err);
+        })?;
+
+        Ok(config)
+    }
+
     pub fn get_mesh(&self) -> Result<&ResultMesh, MeshExtensionError> {
         self.meshes.get(self.mesh_index).map_or(
             Err(MeshExtensionError::NoElementAtIndex(self.mesh_index)),

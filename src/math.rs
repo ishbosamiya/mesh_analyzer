@@ -1,6 +1,7 @@
 use quick_renderer::glm;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct Transform {
     pub location: glm::DVec3,
     pub rotation: glm::DVec3,

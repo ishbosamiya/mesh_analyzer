@@ -96,7 +96,11 @@ fn main() {
 
     let mut last_cursor = window.get_cursor_pos();
 
-    let mut config = Config::default();
+    let config_file_path = "mesh_analyzer.config";
+    let mut config = Config::from_file(config_file_path).unwrap_or_else(|_| {
+        println!("No config found or error while loading config, using default");
+        Config::default()
+    });
 
     let mut fps = FPS::default();
 
@@ -197,6 +201,10 @@ fn main() {
                 .show(egui.get_egui_ctx(), |ui| {
                     egui::ScrollArea::auto_sized().show(ui, |ui| {
                         ui.label(format!("fps: {:.2}", fps.update_and_get()));
+                        if ui.button("Save Config").clicked() {
+                            let config_serialized = serde_json::to_string_pretty(&config).unwrap();
+                            std::fs::write(config_file_path, config_serialized).unwrap();
+                        }
                         if let Err(error) = mesh_errors_maybe {
                             ui.label(format!(
                                 "Some error(s) while trying to visualize the mesh: {}",
