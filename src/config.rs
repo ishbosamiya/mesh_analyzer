@@ -191,6 +191,11 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
         match op_mesh {
             Some(loaded_mesh) => match loaded_mesh.get_mesh() {
                 Ok(mesh) => {
+                    if ui.button("Save current mesh as OBJ").clicked() {
+                        let location =
+                            std::path::Path::new(loaded_mesh.get_location()).with_extension("obj");
+                        mesh.write().write(location).unwrap();
+                    }
                     ui.label(format!(
                         "Currently loaded mesh from file {}",
                         loaded_mesh.get_location()
