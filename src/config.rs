@@ -178,6 +178,18 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                     self.meshes = Vec::new();
                 }
             }
+            self.meshes = self
+                .meshes
+                .drain(..)
+                .filter(|loaded_mesh| match loaded_mesh.get_mesh() {
+                    Ok(_) => true,
+                    Err(err) => !matches!(
+                        err,
+                        MeshExtensionError::FileExtensionUnknown
+                            | MeshExtensionError::NoFileExtension
+                    ),
+                })
+                .collect();
         });
 
         ui.add(
