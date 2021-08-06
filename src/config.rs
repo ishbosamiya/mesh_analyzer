@@ -320,6 +320,11 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
         );
         color_edit_button_dvec4(ui, "Fancy Edge Color", &mut self.edge_color);
         color_edit_button_dvec4(ui, "Loose Fancy Edge Color", &mut self.loose_edge_color);
+        color_edit_button_dvec4(
+            ui,
+            "Anisotropic Flippable Edge Fancy Edge Color",
+            &mut self.anisotropic_flippable_edge_color,
+        );
         color_edit_button_dvec4_range(ui, "Fancy Face Color Range", &mut self.face_color);
         ui.add(
             egui::Slider::new(&mut self.normal_pull_factor, 0.0..=3.0)
