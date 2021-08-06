@@ -116,6 +116,14 @@ pub(crate) mod io_structs {
         pub fn get_m(&self) -> &Float2x2 {
             &self.m
         }
+
+        pub fn get_edge_size_sq(&self, other: &Sizing, u_i: &glm::DVec2, u_j: &glm::DVec2) -> f32 {
+            let u_ij: glm::Vec2 = glm::convert(u_i - u_j);
+
+            let m_avg: glm::Mat2 = ((self.m + other.m) * 0.5).into();
+
+            glm::dot(&u_ij, &(m_avg * u_ij))
+        }
     }
 
     impl std::ops::Add for &Sizing {
@@ -432,6 +440,17 @@ pub trait AdaptiveMeshExtension<END> {
         edge: &AdaptiveEdge,
     ) -> Result<bool, MeshExtensionError>;
 
+    fn compute_edge_size_sq_from_v1_v2(
+        &self,
+        v1: &AdaptiveVert,
+        v2: &AdaptiveVert,
+    ) -> Result<f32, MeshExtensionError>;
+
+    fn compute_edge_size_sq_from_edge(
+        &self,
+        edge: &AdaptiveEdge,
+    ) -> Result<f32, MeshExtensionError>;
+
     fn adaptive_mesh_visualize_config(
         &self,
         config: &Config<
@@ -457,6 +476,21 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
 
         if !self.is_edge_flippable(edge, false) {
             return Ok(false);
+        }
+
+        // if flipping the edge causes the edge size metric to not be under 1
+        {
+            let ov1_index =
+                self.get_checked_other_vert_index(edge.get_self_index(), edge.get_faces()[0]);
+            let ov2_index =
+                self.get_checked_other_vert_index(edge.get_self_index(), edge.get_faces()[1]);
+
+            let ov1 = self.get_vert(ov1_index).unwrap();
+            let ov2 = self.get_vert(ov2_index).unwrap();
+
+            if self.compute_edge_size_sq_from_v1_v2(ov1, ov2)? > 1.0 {
+                return Ok(false);
+            }
         }
 
         let cross_2d = |a: &glm::DVec2, b: &glm::DVec2| a[0] * b[1] - a[1] * b[0];
@@ -547,6 +581,36 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
         } else {
             Err(MeshExtensionError::NoExtraData)
         }
+    }
+
+    fn compute_edge_size_sq_from_v1_v2(
+        &self,
+        v1: &AdaptiveVert,
+        v2: &AdaptiveVert,
+    ) -> Result<f32, MeshExtensionError> {
+        let v1_uv = v1.uv.unwrap();
+        let v2_uv = v2.uv.unwrap();
+        let v1_sizing = v1
+            .extra_data
+            .as_ref()
+            .ok_or(MeshExtensionError::NoExtraData)?
+            .get_sizing();
+        let v2_sizing = v2
+            .extra_data
+            .as_ref()
+            .ok_or(MeshExtensionError::NoExtraData)?
+            .get_sizing();
+
+        Ok(v1_sizing.get_edge_size_sq(v2_sizing, &v1_uv, &v2_uv))
+    }
+
+    fn compute_edge_size_sq_from_edge(
+        &self,
+        edge: &AdaptiveEdge,
+    ) -> Result<f32, MeshExtensionError> {
+        let (v1, v2) = self.get_checked_verts_of_edge(edge, false);
+
+        self.compute_edge_size_sq_from_v1_v2(v1, v2)
     }
 }
 
