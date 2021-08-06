@@ -81,6 +81,8 @@ pub struct Config<END, EVD, EED, EFD> {
 
     draw_wireframe: bool,
     draw_loose_edges: bool,
+    #[serde(default = "default_draw_anisotropic_flippable_edges")]
+    draw_anisotropic_flippable_edges: bool,
 
     #[serde(skip)]
     element: Element,
@@ -97,6 +99,8 @@ pub struct Config<END, EVD, EED, EFD> {
     node_vert_connect_color: glm::DVec4,
     edge_color: glm::DVec4,
     loose_edge_color: glm::DVec4,
+    #[serde(default = "default_anisotropic_flippable_edge_color")]
+    anisotropic_flippable_edge_color: glm::DVec4,
     face_color: (glm::DVec4, glm::DVec4),
     normal_pull_factor: f64,
 
@@ -104,6 +108,14 @@ pub struct Config<END, EVD, EED, EFD> {
     mesh_vert_extra_data_type: PhantomData<EVD>,
     mesh_edge_extra_data_type: PhantomData<EED>,
     mesh_face_extra_data_type: PhantomData<EFD>,
+}
+
+fn default_draw_anisotropic_flippable_edges() -> bool {
+    false
+}
+
+fn default_anisotropic_flippable_edge_color() -> glm::DVec4 {
+    glm::vec4(0.5, 1.0, 0.4, 1.0)
 }
 
 impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
@@ -115,6 +127,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
 
             draw_wireframe: false,
             draw_loose_edges: false,
+            draw_anisotropic_flippable_edges: default_draw_anisotropic_flippable_edges(),
 
             element: Element::Node,
             element_index: 0,
@@ -129,6 +142,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             node_vert_connect_color: glm::vec4(0.17, 1.0, 0.4, 1.0),
             edge_color: glm::vec4(0.01, 0.52, 1.0, 1.0),
             loose_edge_color: glm::vec4(1.0, 0.2, 0.6, 1.0),
+            anisotropic_flippable_edge_color: default_anisotropic_flippable_edge_color(),
             face_color: (
                 glm::vec4(1.0, 0.17, 0.01, 0.4),
                 glm::vec4(0.07, 1.0, 0.4, 0.4),
@@ -235,6 +249,10 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
 
         ui.checkbox(&mut self.draw_wireframe, "Draw Wireframe");
         ui.checkbox(&mut self.draw_loose_edges, "Draw Loose Edges");
+        ui.checkbox(
+            &mut self.draw_anisotropic_flippable_edges,
+            "Draw Anisotropic Flippable Edges",
+        );
 
         egui::ComboBox::from_label("Element Type")
             .selected_text(format!("{}", self.element))
@@ -351,6 +369,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
         self.draw_loose_edges
     }
 
+    pub fn get_draw_anisotropic_flippable_edges(&self) -> bool {
+        self.draw_anisotropic_flippable_edges
+    }
+
     pub fn get_element(&self) -> Element {
         self.element
     }
@@ -385,6 +407,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
     pub fn get_loose_edge_color(&self) -> glm::DVec4 {
         self.loose_edge_color
+    }
+
+    pub fn get_anisotropic_flippable_edge_color(&self) -> glm::DVec4 {
+        self.anisotropic_flippable_edge_color
     }
 
     pub fn get_face_color(&self) -> (glm::DVec4, glm::DVec4) {

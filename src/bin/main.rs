@@ -2,7 +2,7 @@ use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
 
-use mesh_analyzer::blender_mesh_io::{MeshExtensionError, MeshUVDrawData};
+use mesh_analyzer::blender_mesh_io::{AdaptiveMeshExtension, MeshExtensionError, MeshUVDrawData};
 use quick_renderer::camera::WindowCamera;
 use quick_renderer::drawable::Drawable;
 use quick_renderer::fps::FPS;
@@ -147,6 +147,7 @@ fn main() {
         }
 
         let mesh_errors_maybe: Result<(), MeshExtensionError>;
+        let adaptive_mesh_errors_maybe: Result<(), MeshExtensionError>;
         // Draw mesh
         {
             match config.get_mesh() {
@@ -184,11 +185,17 @@ fn main() {
                         smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
 
                         mesh_errors_maybe = mesh.visualize_config(&config, &mut imm);
+                        adaptive_mesh_errors_maybe =
+                            mesh.adaptive_mesh_visualize_config(&config, &mut imm);
                     }
-                    Err(_) => mesh_errors_maybe = Err(MeshExtensionError::NoMesh),
+                    Err(_) => {
+                        mesh_errors_maybe = Err(MeshExtensionError::NoMesh);
+                        adaptive_mesh_errors_maybe = Ok(());
+                    }
                 },
                 Err(error) => {
                     mesh_errors_maybe = Err(error);
+                    adaptive_mesh_errors_maybe = Ok(());
                 }
             }
         }
@@ -212,6 +219,19 @@ fn main() {
                             ));
                         } else {
                             ui.label("Visualizing the mesh :)");
+                        }
+                        if let Err(error) = adaptive_mesh_errors_maybe {
+                            // TODO(ish): This whole adaptive mesh
+                            // visualization part is hacky, need to
+                            // fix sometime
+                            ui.label(format!(
+                                "Some error(s) while trying to visualize the adaptive mesh: {}",
+                                error
+                            ));
+                        } else if config.get_draw_anisotropic_flippable_edges() {
+                            ui.label("Visualizing the adaptive mesh :)");
+                        } else {
+                            ui.label("Not visualzing the adaptive mesh part");
                         }
                         config.draw_ui(&(), ui);
                         config.draw_ui_edit(&(), ui);

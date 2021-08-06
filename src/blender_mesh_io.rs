@@ -49,6 +49,38 @@ pub(crate) mod io_structs {
         m11: f32,
     }
 
+    impl std::ops::Add for Float2x2 {
+        type Output = Float2x2;
+
+        fn add(self, rhs: Self) -> Self::Output {
+            Self::Output {
+                m00: self.m00 + rhs.m00,
+                m01: self.m01 + rhs.m01,
+                m10: self.m10 + rhs.m10,
+                m11: self.m11 + rhs.m11,
+            }
+        }
+    }
+
+    impl std::ops::Mul<f32> for Float2x2 {
+        type Output = Float2x2;
+
+        fn mul(self, rhs: f32) -> Self::Output {
+            Self::Output {
+                m00: self.m00 * rhs,
+                m01: self.m01 * rhs,
+                m10: self.m10 * rhs,
+                m11: self.m11 * rhs,
+            }
+        }
+    }
+
+    impl From<Float2x2> for glm::Mat2 {
+        fn from(f: Float2x2) -> Self {
+            glm::mat2(f.m00, f.m01, f.m10, f.m11)
+        }
+    }
+
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
     pub struct Index {
         index: usize,
@@ -61,10 +93,45 @@ pub(crate) mod io_structs {
         extra_data: T,
     }
 
+    impl<T> NodeData<T> {
+        pub fn get_extra_data(&self) -> &T {
+            &self.extra_data
+        }
+    }
+
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub struct Sizing {
         sizing_str: String,
         m: Float2x2,
+    }
+
+    impl Sizing {
+        pub fn new(m: Float2x2) -> Self {
+            Self {
+                sizing_str: String::new(),
+                m,
+            }
+        }
+
+        pub fn get_m(&self) -> &Float2x2 {
+            &self.m
+        }
+    }
+
+    impl std::ops::Add for &Sizing {
+        type Output = Sizing;
+
+        fn add(self, rhs: Self) -> Self::Output {
+            Sizing::new(self.m + rhs.m)
+        }
+    }
+
+    impl std::ops::Mul<f32> for &Sizing {
+        type Output = Sizing;
+
+        fn mul(self, rhs: f32) -> Self::Output {
+            Sizing::new(self.m * rhs)
+        }
     }
 
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -74,10 +141,22 @@ pub(crate) mod io_structs {
         flag: i32,
     }
 
+    impl VertData {
+        pub fn get_sizing(&self) -> &Sizing {
+            &self.sizing
+        }
+    }
+
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub struct EdgeData {
         edge_data_str: String,
         size: f32,
+    }
+
+    impl EdgeData {
+        pub fn get_size(&self) -> f32 {
+            self.size
+        }
     }
 
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -335,6 +414,10 @@ pub(crate) mod io_structs {
     }
 }
 
+pub type AdaptiveNode<END> = mesh::Node<io_structs::NodeData<END>>;
+pub type AdaptiveVert = mesh::Vert<io_structs::VertData>;
+pub type AdaptiveEdge = mesh::Edge<io_structs::EdgeData>;
+pub type AdaptiveFace = mesh::Face<io_structs::EmptyExtraData>;
 pub type AdaptiveMesh<END> = mesh::Mesh<
     io_structs::NodeData<END>,
     io_structs::VertData,
@@ -342,6 +425,130 @@ pub type AdaptiveMesh<END> = mesh::Mesh<
     io_structs::EmptyExtraData,
 >;
 pub type EmptyAdaptiveMesh = AdaptiveMesh<io_structs::EmptyExtraData>;
+
+pub trait AdaptiveMeshExtension<END> {
+    fn is_edge_flippable_anisotropic_aware(
+        &self,
+        edge: &AdaptiveEdge,
+    ) -> Result<bool, MeshExtensionError>;
+
+    fn adaptive_mesh_visualize_config(
+        &self,
+        config: &Config<
+            io_structs::NodeData<END>,
+            io_structs::VertData,
+            io_structs::EdgeData,
+            io_structs::EmptyExtraData,
+        >,
+        imm: &mut GPUImmediate,
+    ) -> Result<(), MeshExtensionError>;
+}
+
+impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
+    fn is_edge_flippable_anisotropic_aware(
+        &self,
+        edge: &AdaptiveEdge,
+    ) -> Result<bool, MeshExtensionError> {
+        let alpha = 0.1;
+
+        if self.is_edge_loose_or_on_seam_or_boundary(edge) {
+            return Ok(false);
+        }
+
+        if !self.is_edge_flippable(edge, false) {
+            return Ok(false);
+        }
+
+        let cross_2d = |a: &glm::DVec2, b: &glm::DVec2| a[0] * b[1] - a[1] * b[0];
+
+        let (v_i_index, v_j_index) = edge.get_verts().unwrap();
+        let v_k_index =
+            self.get_checked_other_vert_index(edge.get_self_index(), edge.get_faces()[0]);
+        let v_l_index =
+            self.get_checked_other_vert_index(edge.get_self_index(), edge.get_faces()[1]);
+        let v_i = self.get_vert(v_i_index).unwrap();
+        let v_j = self.get_vert(v_j_index).unwrap();
+        let v_k = self.get_vert(v_k_index).unwrap();
+        let v_l = self.get_vert(v_l_index).unwrap();
+
+        let m_i = v_i
+            .extra_data
+            .as_ref()
+            .ok_or(MeshExtensionError::NoExtraData)?
+            .get_sizing();
+        let m_j = v_j
+            .extra_data
+            .as_ref()
+            .ok_or(MeshExtensionError::NoExtraData)?
+            .get_sizing();
+        let m_k = v_k
+            .extra_data
+            .as_ref()
+            .ok_or(MeshExtensionError::NoExtraData)?
+            .get_sizing();
+        let m_l = v_l
+            .extra_data
+            .as_ref()
+            .ok_or(MeshExtensionError::NoExtraData)?
+            .get_sizing();
+
+        let m_avg = &(&(m_i + m_j) + &(m_k + m_l)) * 0.25;
+        let m_avg = *m_avg.get_m();
+        let m_avg: glm::DMat2 = glm::convert::<glm::Mat2, _>(m_avg.into());
+
+        let u_jk = v_j.uv.unwrap() - v_k.uv.unwrap();
+        let u_ik = v_i.uv.unwrap() - v_k.uv.unwrap();
+        let u_il = v_i.uv.unwrap() - v_l.uv.unwrap();
+        let u_jl = v_j.uv.unwrap() - v_l.uv.unwrap();
+
+        let lhs = cross_2d(&u_jk, &u_ik) * glm::dot(&u_il, &(m_avg * u_jl))
+            + glm::dot(&u_jk, &(m_avg * u_ik)) * cross_2d(&u_il, &u_jl);
+
+        let rhs = -alpha * (cross_2d(&u_jk, &u_ik) + cross_2d(&u_il, &u_jl));
+
+        Ok(lhs < rhs)
+    }
+
+    fn adaptive_mesh_visualize_config(
+        &self,
+        config: &Config<
+            io_structs::NodeData<END>,
+            io_structs::VertData,
+            io_structs::EdgeData,
+            io_structs::EmptyExtraData,
+        >,
+        imm: &mut GPUImmediate,
+    ) -> Result<(), MeshExtensionError> {
+        let mut had_extra_data = true;
+        if config.get_draw_anisotropic_flippable_edges() {
+            let uv_plane_3d_model_matrix = config.get_uv_plane_3d_transform().get_matrix();
+            self.get_edges()
+                .iter()
+                .filter(|(_, edge)| {
+                    self.is_edge_flippable_anisotropic_aware(edge)
+                        .unwrap_or_else(|_| {
+                            had_extra_data = false;
+                            false
+                        })
+                })
+                .for_each(|(_, edge)| {
+                    self.draw_fancy_edge(
+                        edge,
+                        &uv_plane_3d_model_matrix,
+                        imm,
+                        glm::convert(config.get_anisotropic_flippable_edge_color()),
+                        config.get_normal_pull_factor(),
+                    );
+                });
+        }
+
+        if had_extra_data {
+            Ok(())
+        } else {
+            Err(MeshExtensionError::NoExtraData)
+        }
+    }
+}
 
 pub struct MeshUVDrawData<'a> {
     imm: &'a mut GPUImmediate,
@@ -748,6 +955,7 @@ pub enum MeshExtensionError {
     FileExtensionUnknown,
     NoFileExtension,
     NoMesh,
+    NoExtraData,
 }
 
 impl std::error::Error for MeshExtensionError {}
@@ -769,6 +977,9 @@ impl Display for MeshExtensionError {
             }
             MeshExtensionError::NoMesh => {
                 write!(f, "No mesh available")
+            }
+            MeshExtensionError::NoExtraData => {
+                write!(f, "No extra data for the element")
             }
         }
     }
