@@ -436,6 +436,7 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
                 let min_dist = 0.1;
 
                 let uv_plane_3d_model_matrix = &self.uv_plane_3d_transform.get_matrix();
+                let mesh_3d_model_matrix = &self.mesh_transform.get_matrix();
 
                 let mut edge_best = None;
                 let mut edge_best_ray_dist = f64::MAX;
@@ -462,7 +463,6 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
                     );
 
                     let edge_normal = glm::cross(&(uv1 - uv2), &ray.1).normalize();
-
                     let epos1 = uv1 + edge_normal * min_dist;
                     let epos2 = uv1 - edge_normal * min_dist;
                     let epos3 = uv2 + edge_normal * min_dist;
@@ -487,6 +487,64 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
                         let dist_to_edge = glm::cross(&(uv1 - (ray.0 + t * ray.1)), &(uv2 - uv1))
                             .norm()
                             / (uv2 - uv1).norm();
+                        if dist_to_edge < edge_best_dist_to_edge {
+                            edge_best = Some(edge_index);
+                            edge_best_ray_dist = t;
+                            edge_best_dist_to_edge = dist_to_edge;
+                        }
+                    }
+
+                    // For the node edges (3d edges)
+                    let pos1 = apply_model_matrix_vec3(
+                        &mesh
+                            .get_node(
+                                mesh.get_vert(edge.get_verts().unwrap().0)
+                                    .unwrap()
+                                    .get_node()
+                                    .unwrap(),
+                            )
+                            .unwrap()
+                            .pos,
+                        mesh_3d_model_matrix,
+                    );
+                    let pos2 = apply_model_matrix_vec3(
+                        &mesh
+                            .get_node(
+                                mesh.get_vert(edge.get_verts().unwrap().1)
+                                    .unwrap()
+                                    .get_node()
+                                    .unwrap(),
+                            )
+                            .unwrap()
+                            .pos,
+                        mesh_3d_model_matrix,
+                    );
+
+                    let edge_normal = glm::cross(&(pos1 - pos2), &ray.1).normalize();
+                    let epos1 = pos1 + edge_normal * min_dist;
+                    let epos2 = pos1 - edge_normal * min_dist;
+                    let epos3 = pos2 + edge_normal * min_dist;
+                    let epos4 = pos2 - edge_normal * min_dist;
+
+                    if let Some((t, _, _)) =
+                        ray_triangle_intersect(&ray.0, &ray.1, &epos1, &epos2, &epos4)
+                    {
+                        let dist_to_edge =
+                            glm::cross(&(pos1 - (ray.0 + t * ray.1)), &(pos2 - pos1)).norm()
+                                / (pos2 - pos1).norm();
+                        if dist_to_edge < edge_best_dist_to_edge {
+                            edge_best = Some(edge_index);
+                            edge_best_ray_dist = t;
+                            edge_best_dist_to_edge = dist_to_edge;
+                        }
+                    }
+
+                    if let Some((t, _, _)) =
+                        ray_triangle_intersect(&ray.0, &ray.1, &epos1, &epos4, &epos3)
+                    {
+                        let dist_to_edge =
+                            glm::cross(&(pos1 - (ray.0 + t * ray.1)), &(pos2 - pos1)).norm()
+                                / (pos2 - pos1).norm();
                         if dist_to_edge < edge_best_dist_to_edge {
                             edge_best = Some(edge_index);
                             edge_best_ray_dist = t;
