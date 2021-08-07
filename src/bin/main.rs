@@ -110,6 +110,8 @@ fn main() {
 
     let mut fps = FPS::default();
 
+    let mut show_edge_triangles = false;
+
     while !window.should_close() {
         glfw.poll_events();
 
@@ -266,7 +268,7 @@ fn main() {
                                 })
                                 .collect();
 
-                            {
+                            if show_edge_triangles {
                                 let color = glm::vec4(0.2, 0.2, 0.5, 0.2);
                                 imm.begin(
                                     quick_renderer::gpu_immediate::GPUPrimType::Tris,
@@ -444,6 +446,9 @@ fn main() {
                         } else {
                             ui.label("Not visualzing the adaptive mesh part");
                         }
+
+                        ui.checkbox(&mut show_edge_triangles, "Show Edge Triangles");
+
                         config.draw_ui(&(), ui);
                         config.draw_ui_edit(&(), ui);
                     });
