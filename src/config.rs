@@ -431,7 +431,93 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
                 Ok(())
             }
             Element::Edge => todo!(),
-            Element::Face => todo!(),
+            Element::Face => {
+                let uv_plane_3d_model_matrix = &self.uv_plane_3d_transform.get_matrix();
+                let mesh_3d_model_matrix = &self.mesh_transform.get_matrix();
+
+                let mut face_best = None;
+                let mut face_best_dist = f64::MAX;
+
+                let mesh = self.get_mesh().map_err(|_| ())?.as_ref().map_err(|_| ())?;
+
+                mesh.get_faces().iter().for_each(|(face_index, face)| {
+                    assert_eq!(face.get_verts().len(), 3);
+
+                    let uv_1 = apply_model_matrix_vec2(
+                        &mesh.get_vert(face.get_verts()[0]).unwrap().uv.unwrap(),
+                        uv_plane_3d_model_matrix,
+                    );
+                    let uv_2 = apply_model_matrix_vec2(
+                        &mesh.get_vert(face.get_verts()[1]).unwrap().uv.unwrap(),
+                        uv_plane_3d_model_matrix,
+                    );
+                    let uv_3 = apply_model_matrix_vec2(
+                        &mesh.get_vert(face.get_verts()[2]).unwrap().uv.unwrap(),
+                        uv_plane_3d_model_matrix,
+                    );
+
+                    if let Some((t, _, _)) =
+                        ray_triangle_intersect(&ray.0, &ray.1, &uv_1, &uv_2, &uv_3)
+                    {
+                        if t < face_best_dist {
+                            face_best = Some(face_index);
+                            face_best_dist = t;
+                        }
+                    }
+
+                    let pos_1 = apply_model_matrix_vec3(
+                        &mesh
+                            .get_node(
+                                mesh.get_vert(face.get_verts()[0])
+                                    .unwrap()
+                                    .get_node()
+                                    .unwrap(),
+                            )
+                            .unwrap()
+                            .pos,
+                        mesh_3d_model_matrix,
+                    );
+                    let pos_2 = apply_model_matrix_vec3(
+                        &mesh
+                            .get_node(
+                                mesh.get_vert(face.get_verts()[1])
+                                    .unwrap()
+                                    .get_node()
+                                    .unwrap(),
+                            )
+                            .unwrap()
+                            .pos,
+                        mesh_3d_model_matrix,
+                    );
+                    let pos_3 = apply_model_matrix_vec3(
+                        &mesh
+                            .get_node(
+                                mesh.get_vert(face.get_verts()[2])
+                                    .unwrap()
+                                    .get_node()
+                                    .unwrap(),
+                            )
+                            .unwrap()
+                            .pos,
+                        mesh_3d_model_matrix,
+                    );
+
+                    if let Some((t, _, _)) =
+                        ray_triangle_intersect(&ray.0, &ray.1, &pos_1, &pos_2, &pos_3)
+                    {
+                        if t < face_best_dist {
+                            face_best = Some(face_index);
+                            face_best_dist = t;
+                        }
+                    }
+                });
+
+                if let Some(face_index) = face_best {
+                    self.element_index = face_index.into_raw_parts().0;
+                }
+
+                Ok(())
+            }
         }
     }
 
@@ -544,4 +630,44 @@ fn color_edit_button_dvec4_range(
         color_edit_dvec4(ui, &mut color.0);
         color_edit_dvec4(ui, &mut color.1);
     });
+}
+
+/// From
+/// https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection
+fn ray_triangle_intersect(
+    orig: &glm::DVec3,
+    dir: &glm::DVec3,
+    v0: &glm::DVec3,
+    v1: &glm::DVec3,
+    v2: &glm::DVec3,
+) -> Option<(f64, f64, f64)> {
+    let v0v1 = v1 - v0;
+    let v0v2 = v2 - v0;
+    let pvec = glm::cross(dir, &v0v2);
+
+    let det = glm::dot(&v0v1, &pvec);
+
+    if det.abs() < 0.001 {
+        return None;
+    }
+
+    let inv_det = 1.0 / det;
+
+    let tvec = orig - v0;
+    let u = glm::dot(&tvec, &pvec) * inv_det;
+
+    if !(0.0..=1.0).contains(&u) {
+        return None;
+    }
+
+    let qvec = glm::cross(&tvec, &v0v1);
+    let v = glm::dot(dir, &qvec) * inv_det;
+
+    if v < 0.0 || (u + v) > 1.0 {
+        return None;
+    }
+
+    let t = glm::dot(&v0v2, &qvec) * inv_det;
+
+    Some((t, u, v))
 }
