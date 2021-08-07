@@ -8,7 +8,9 @@ use quick_renderer::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    blender_mesh_io::{EmptyAdaptiveMesh, MeshExtensionError},
+    blender_mesh_io::{
+        apply_model_matrix_vec2, apply_model_matrix_vec3, EmptyAdaptiveMesh, MeshExtensionError,
+    },
     draw_ui::DrawUI,
     math::{self, Transform},
     prelude::MeshExtension,
@@ -357,6 +359,80 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
         })?;
 
         Ok(config)
+    }
+
+    #[allow(clippy::result_unit_err)]
+    pub fn select_element(&mut self, ray: (glm::DVec3, glm::DVec3)) -> Result<(), ()> {
+        match self.element {
+            Element::Node => {
+                let min_dist = 0.1;
+
+                let mesh_3d_model_matrix = &self.mesh_transform.get_matrix();
+
+                // find nearest within nodes
+                let mut node_best = None;
+                let mut node_best_dist = f64::MAX;
+                for (node_index, node) in self
+                    .get_mesh()
+                    .map_err(|_| ())?
+                    .as_ref()
+                    .map_err(|_| ())?
+                    .get_nodes()
+                    .iter()
+                {
+                    let p1 = apply_model_matrix_vec3(&node.pos, mesh_3d_model_matrix);
+                    let p1_to_ray_distance = glm::length(&glm::cross(&(p1 - ray.0), &ray.1));
+
+                    if p1_to_ray_distance < min_dist
+                        && (node_best.is_none() || node_best_dist > p1_to_ray_distance)
+                    {
+                        node_best = Some(node_index);
+                        node_best_dist = p1_to_ray_distance;
+                    }
+                }
+
+                if let Some(node_index) = node_best {
+                    self.element_index = node_index.into_raw_parts().0;
+                }
+
+                Ok(())
+            }
+            Element::Vert => {
+                let min_dist = 0.1;
+
+                let uv_plane_3d_model_matrix = &self.uv_plane_3d_transform.get_matrix();
+
+                // find nearest within verts
+                let mut vert_best = None;
+                let mut vert_best_dist = f64::MAX;
+                for (vert_index, vert) in self
+                    .get_mesh()
+                    .map_err(|_| ())?
+                    .as_ref()
+                    .map_err(|_| ())?
+                    .get_verts()
+                    .iter()
+                {
+                    let p1 = apply_model_matrix_vec2(&vert.uv.unwrap(), uv_plane_3d_model_matrix);
+                    let p1_to_ray_distance = glm::length(&glm::cross(&(p1 - ray.0), &ray.1));
+
+                    if p1_to_ray_distance < min_dist
+                        && (vert_best.is_none() || vert_best_dist > p1_to_ray_distance)
+                    {
+                        vert_best = Some(vert_index);
+                        vert_best_dist = p1_to_ray_distance;
+                    }
+                }
+
+                if let Some(vert_index) = vert_best {
+                    self.element_index = vert_index.into_raw_parts().0;
+                }
+
+                Ok(())
+            }
+            Element::Edge => todo!(),
+            Element::Face => todo!(),
+        }
     }
 
     pub fn get_mesh(&self) -> Result<&ResultMesh, MeshExtensionError> {

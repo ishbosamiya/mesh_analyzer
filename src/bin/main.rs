@@ -110,7 +110,13 @@ fn main() {
         glfw::flush_messages(&events).for_each(|(_, event)| {
             egui.handle_event(&event, &window);
 
-            handle_window_event(&event, &mut window, &mut camera, &mut last_cursor);
+            handle_window_event(
+                &event,
+                &mut window,
+                &mut camera,
+                &mut config,
+                &mut last_cursor,
+            );
         });
 
         unsafe {
@@ -247,10 +253,11 @@ fn main() {
     }
 }
 
-fn handle_window_event(
+fn handle_window_event<END, EVD, EED, EFD>(
     event: &glfw::WindowEvent,
     window: &mut glfw::Window,
     camera: &mut WindowCamera,
+    config: &mut Config<END, EVD, EED, EFD>,
     last_cursor: &mut (f64, f64),
 ) {
     let cursor = window.get_cursor_pos();
@@ -290,6 +297,17 @@ fn handle_window_event(
                 false,
             );
         }
+    }
+
+    if window.get_mouse_button(glfw::MouseButtonLeft) == glfw::Action::Press
+        && window.get_key(glfw::Key::LeftControl) == glfw::Action::Press
+    {
+        let ray_origin = camera.get_position();
+        let ray_direction = camera.get_raycast_direction(cursor.0, cursor.1, window);
+
+        config
+            .select_element((ray_origin, ray_direction))
+            .unwrap_or_default();
     }
 
     *last_cursor = cursor;

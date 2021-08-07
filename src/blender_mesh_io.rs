@@ -1612,15 +1612,15 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
     }
 }
 
-fn apply_model_matrix_vec2(v: &glm::DVec2, model: &glm::DMat4) -> glm::DVec3 {
+pub fn apply_model_matrix_vec2(v: &glm::DVec2, model: &glm::DMat4) -> glm::DVec3 {
     glm::vec4_to_vec3(&(model * math::append_one(&glm::vec2_to_vec3(v))))
 }
 
-fn apply_model_matrix_vec3(v: &glm::DVec3, model: &glm::DMat4) -> glm::DVec3 {
+pub fn apply_model_matrix_vec3(v: &glm::DVec3, model: &glm::DMat4) -> glm::DVec3 {
     glm::vec4_to_vec3(&(model * math::append_one(v)))
 }
 
-fn apply_model_matrix_to_normal(normal: &glm::DVec3, model: &glm::DMat4) -> glm::DVec3 {
+pub fn apply_model_matrix_to_normal(normal: &glm::DVec3, model: &glm::DMat4) -> glm::DVec3 {
     apply_model_matrix_vec3(normal, &glm::inverse_transpose(*model))
 }
 
