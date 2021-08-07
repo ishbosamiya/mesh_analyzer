@@ -362,7 +362,15 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
     }
 
     #[allow(clippy::result_unit_err)]
-    pub fn select_element(&mut self, ray: (glm::DVec3, glm::DVec3)) -> Result<(), ()> {
+    /// selects the element (based on which element type is currently
+    /// selected) that intersects the closest with the given ray
+    ///
+    /// `camera_front` is the vector in the forward direction of the camera
+    pub fn select_element(
+        &mut self,
+        ray: (glm::DVec3, glm::DVec3),
+        camera_front: glm::DVec3,
+    ) -> Result<(), ()> {
         match self.element {
             Element::Node => {
                 let min_dist = 0.1;
@@ -430,7 +438,75 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
                 Ok(())
             }
-            Element::Edge => todo!(),
+            Element::Edge => {
+                let min_dist = 0.1;
+
+                let uv_plane_3d_model_matrix = &self.uv_plane_3d_transform.get_matrix();
+
+                let mut edge_best = None;
+                let mut edge_best_ray_dist = f64::MAX;
+                let mut edge_best_dist_to_edge = f64::MAX;
+
+                let mesh = self.get_mesh().map_err(|_| ())?.as_ref().map_err(|_| ())?;
+
+                mesh.get_edges().iter().for_each(|(edge_index, edge)| {
+                    let uv1 = apply_model_matrix_vec2(
+                        &mesh
+                            .get_vert(edge.get_verts().unwrap().0)
+                            .unwrap()
+                            .uv
+                            .unwrap(),
+                        uv_plane_3d_model_matrix,
+                    );
+                    let uv2 = apply_model_matrix_vec2(
+                        &mesh
+                            .get_vert(edge.get_verts().unwrap().1)
+                            .unwrap()
+                            .uv
+                            .unwrap(),
+                        uv_plane_3d_model_matrix,
+                    );
+
+                    let edge_normal = glm::cross(&(uv1 - uv2), &camera_front).normalize();
+
+                    let epos1 = uv1 + edge_normal * min_dist;
+                    let epos2 = uv1 - edge_normal * min_dist;
+                    let epos3 = uv2 + edge_normal * min_dist;
+                    let epos4 = uv2 - edge_normal * min_dist;
+
+                    if let Some((t, _, _)) =
+                        ray_triangle_intersect(&ray.0, &ray.1, &epos1, &epos2, &epos4)
+                    {
+                        let dist_to_edge = glm::cross(&(uv1 - (ray.0 + t * ray.1)), &(uv2 - uv1))
+                            .norm()
+                            / (uv2 - uv1).norm();
+                        if dist_to_edge < edge_best_dist_to_edge {
+                            edge_best = Some(edge_index);
+                            edge_best_ray_dist = t;
+                            edge_best_dist_to_edge = dist_to_edge;
+                        }
+                    }
+
+                    if let Some((t, _, _)) =
+                        ray_triangle_intersect(&ray.0, &ray.1, &epos1, &epos4, &epos3)
+                    {
+                        let dist_to_edge = glm::cross(&(uv1 - (ray.0 + t * ray.1)), &(uv2 - uv1))
+                            .norm()
+                            / (uv2 - uv1).norm();
+                        if dist_to_edge < edge_best_dist_to_edge {
+                            edge_best = Some(edge_index);
+                            edge_best_ray_dist = t;
+                            edge_best_dist_to_edge = dist_to_edge;
+                        }
+                    }
+                });
+
+                if let Some(edge_index) = edge_best {
+                    self.element_index = edge_index.into_raw_parts().0;
+                }
+
+                Ok(())
+            }
             Element::Face => {
                 let uv_plane_3d_model_matrix = &self.uv_plane_3d_transform.get_matrix();
                 let mesh_3d_model_matrix = &self.mesh_transform.get_matrix();
@@ -634,7 +710,7 @@ fn color_edit_button_dvec4_range(
 
 /// From
 /// https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection
-fn ray_triangle_intersect(
+pub fn ray_triangle_intersect(
     orig: &glm::DVec3,
     dir: &glm::DVec3,
     v0: &glm::DVec3,
