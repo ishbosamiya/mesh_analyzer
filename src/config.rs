@@ -364,13 +364,7 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
     #[allow(clippy::result_unit_err)]
     /// selects the element (based on which element type is currently
     /// selected) that intersects the closest with the given ray
-    ///
-    /// `camera_front` is the vector in the forward direction of the camera
-    pub fn select_element(
-        &mut self,
-        ray: (glm::DVec3, glm::DVec3),
-        camera_front: glm::DVec3,
-    ) -> Result<(), ()> {
+    pub fn select_element(&mut self, ray: (glm::DVec3, glm::DVec3)) -> Result<(), ()> {
         match self.element {
             Element::Node => {
                 let min_dist = 0.1;
@@ -467,7 +461,7 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
                         uv_plane_3d_model_matrix,
                     );
 
-                    let edge_normal = glm::cross(&(uv1 - uv2), &camera_front).normalize();
+                    let edge_normal = glm::cross(&(uv1 - uv2), &ray.1).normalize();
 
                     let epos1 = uv1 + edge_normal * min_dist;
                     let epos2 = uv1 - edge_normal * min_dist;

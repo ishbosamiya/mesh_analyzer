@@ -222,6 +222,11 @@ fn main() {
                                 quick_renderer::gpu_immediate::GPUVertFetchMode::Float,
                             );
 
+                            let ray = (
+                                camera.get_position(),
+                                camera.get_raycast_direction(last_cursor.0, last_cursor.1, &window),
+                            );
+
                             let min_dist = 0.1;
                             let uv_plane_3d_model_matrix =
                                 &config.get_uv_plane_3d_transform().get_matrix();
@@ -246,8 +251,7 @@ fn main() {
                                         uv_plane_3d_model_matrix,
                                     );
 
-                                    let edge_normal =
-                                        glm::cross(&(uv1 - uv2), &camera.get_front()).normalize();
+                                    let edge_normal = glm::cross(&(uv1 - uv2), &ray.1).normalize();
 
                                     let epos1 = uv1 + edge_normal * min_dist;
                                     let epos2 = uv1 - edge_normal * min_dist;
@@ -306,11 +310,6 @@ fn main() {
                             let mut edge_best = None;
                             let mut edge_best_ray_dist = f64::MAX;
                             let mut edge_best_dist_to_edge = f64::MAX;
-
-                            let ray = (
-                                camera.get_position(),
-                                camera.get_raycast_direction(last_cursor.0, last_cursor.1, &window),
-                            );
 
                             quads
                                 .iter()
@@ -522,7 +521,7 @@ fn handle_window_event<END, EVD, EED, EFD>(
                 let ray_direction = camera.get_raycast_direction(cursor.0, cursor.1, window);
 
                 config
-                    .select_element((ray_origin, ray_direction), camera.get_front())
+                    .select_element((ray_origin, ray_direction))
                     .unwrap_or_default();
             }
         }
