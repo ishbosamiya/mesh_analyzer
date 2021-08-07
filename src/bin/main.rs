@@ -261,6 +261,16 @@ fn handle_window_event<END, EVD, EED, EFD>(
     last_cursor: &mut (f64, f64),
 ) {
     let cursor = window.get_cursor_pos();
+    let mods;
+    match event {
+        glfw::WindowEvent::Key(_, _, _, modifiers) => {
+            mods = Some(modifiers);
+        }
+        glfw::WindowEvent::MouseButton(_, _, modifiers) => mods = Some(modifiers),
+        _ => {
+            mods = None;
+        }
+    }
     match event {
         glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
             window.set_should_close(true);
@@ -299,15 +309,17 @@ fn handle_window_event<END, EVD, EED, EFD>(
         }
     }
 
-    if window.get_mouse_button(glfw::MouseButtonLeft) == glfw::Action::Press
-        && window.get_key(glfw::Key::LeftControl) == glfw::Action::Press
-    {
-        let ray_origin = camera.get_position();
-        let ray_direction = camera.get_raycast_direction(cursor.0, cursor.1, window);
+    if window.get_mouse_button(glfw::MouseButtonLeft) == glfw::Action::Press {
+        if let Some(mods) = mods {
+            if mods.contains(glfw::Modifiers::Control) {
+                let ray_origin = camera.get_position();
+                let ray_direction = camera.get_raycast_direction(cursor.0, cursor.1, window);
 
-        config
-            .select_element((ray_origin, ray_direction))
-            .unwrap_or_default();
+                config
+                    .select_element((ray_origin, ray_direction))
+                    .unwrap_or_default();
+            }
+        }
     }
 
     *last_cursor = cursor;
