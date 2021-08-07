@@ -538,7 +538,7 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
         let lhs = cross_2d(&u_jk, &u_ik) * glm::dot(&u_il, &(m_avg * u_jl))
             + glm::dot(&u_jk, &(m_avg * u_ik)) * cross_2d(&u_il, &u_jl);
 
-        let rhs = -alpha * (cross_2d(&u_jk, &u_ik) + cross_2d(&u_il, &u_jl));
+        let rhs = -alpha * (cross_2d(&u_jk, &u_ik).abs() + cross_2d(&u_il, &u_jl).abs());
 
         Ok(lhs < rhs)
     }
