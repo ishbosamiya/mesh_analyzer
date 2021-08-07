@@ -2,9 +2,7 @@ use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
 
-use mesh_analyzer::blender_mesh_io::{
-    apply_model_matrix_vec2, AdaptiveMeshExtension, MeshExtensionError, MeshUVDrawData,
-};
+use mesh_analyzer::blender_mesh_io::{AdaptiveMeshExtension, MeshExtensionError, MeshUVDrawData};
 use quick_renderer::camera::WindowCamera;
 use quick_renderer::drawable::Drawable;
 use quick_renderer::fps::FPS;
@@ -110,8 +108,6 @@ fn main() {
 
     let mut fps = FPS::default();
 
-    let mut show_edge_triangles = false;
-
     while !window.should_close() {
         glfw.poll_events();
 
@@ -201,205 +197,6 @@ fn main() {
                         mesh_errors_maybe = mesh.visualize_config(&config, &mut imm);
                         adaptive_mesh_errors_maybe =
                             mesh.adaptive_mesh_visualize_config(&config, &mut imm);
-
-                        {
-                            let smooth_color_3d_shader =
-                                shader::builtins::get_smooth_color_3d_shader()
-                                    .as_ref()
-                                    .unwrap();
-
-                            smooth_color_3d_shader.use_shader();
-
-                            let format = imm.get_cleared_vertex_format();
-                            let pos_attr = format.add_attribute(
-                                "in_pos\0".to_string(),
-                                quick_renderer::gpu_immediate::GPUVertCompType::F32,
-                                3,
-                                quick_renderer::gpu_immediate::GPUVertFetchMode::Float,
-                            );
-                            let color_attr = format.add_attribute(
-                                "in_color\0".to_string(),
-                                quick_renderer::gpu_immediate::GPUVertCompType::F32,
-                                4,
-                                quick_renderer::gpu_immediate::GPUVertFetchMode::Float,
-                            );
-
-                            let ray = (
-                                camera.get_position(),
-                                camera.get_raycast_direction(last_cursor.0, last_cursor.1, &window),
-                            );
-
-                            let min_dist = 0.1;
-                            let uv_plane_3d_model_matrix =
-                                &config.get_uv_plane_3d_transform().get_matrix();
-                            let quads: Vec<_> = mesh
-                                .get_edges()
-                                .iter()
-                                .map(|(_, edge)| {
-                                    let uv1 = apply_model_matrix_vec2(
-                                        &mesh
-                                            .get_vert(edge.get_verts().unwrap().0)
-                                            .unwrap()
-                                            .uv
-                                            .unwrap(),
-                                        uv_plane_3d_model_matrix,
-                                    );
-                                    let uv2 = apply_model_matrix_vec2(
-                                        &mesh
-                                            .get_vert(edge.get_verts().unwrap().1)
-                                            .unwrap()
-                                            .uv
-                                            .unwrap(),
-                                        uv_plane_3d_model_matrix,
-                                    );
-
-                                    let edge_normal = glm::cross(&(uv1 - uv2), &ray.1).normalize();
-
-                                    let epos1 = uv1 + edge_normal * min_dist;
-                                    let epos2 = uv1 - edge_normal * min_dist;
-                                    let epos3 = uv2 + edge_normal * min_dist;
-                                    let epos4 = uv2 - edge_normal * min_dist;
-
-                                    let epos1: glm::Vec3 = glm::convert(epos1);
-                                    let epos2: glm::Vec3 = glm::convert(epos2);
-                                    let epos3: glm::Vec3 = glm::convert(epos3);
-                                    let epos4: glm::Vec3 = glm::convert(epos4);
-                                    (uv1, uv2, epos1, epos2, epos3, epos4)
-                                })
-                                .collect();
-
-                            if show_edge_triangles {
-                                let color = glm::vec4(0.2, 0.2, 0.5, 0.2);
-                                imm.begin(
-                                    quick_renderer::gpu_immediate::GPUPrimType::Tris,
-                                    mesh.get_edges().len() * 6,
-                                    smooth_color_3d_shader,
-                                );
-
-                                quads.iter().for_each(
-                                    |(_uv1, _uv2, epos1, epos2, epos3, epos4)| {
-                                        imm.attr_4f(
-                                            color_attr, color[0], color[1], color[2], color[3],
-                                        );
-                                        imm.vertex_3f(pos_attr, epos1[0], epos1[1], epos1[2]);
-                                        imm.attr_4f(
-                                            color_attr, color[0], color[1], color[2], color[3],
-                                        );
-                                        imm.vertex_3f(pos_attr, epos2[0], epos2[1], epos2[2]);
-                                        imm.attr_4f(
-                                            color_attr, color[0], color[1], color[2], color[3],
-                                        );
-                                        imm.vertex_3f(pos_attr, epos4[0], epos4[1], epos4[2]);
-
-                                        imm.attr_4f(
-                                            color_attr, color[0], color[1], color[2], color[3],
-                                        );
-                                        imm.vertex_3f(pos_attr, epos1[0], epos1[1], epos1[2]);
-                                        imm.attr_4f(
-                                            color_attr, color[0], color[1], color[2], color[3],
-                                        );
-                                        imm.vertex_3f(pos_attr, epos4[0], epos4[1], epos4[2]);
-                                        imm.attr_4f(
-                                            color_attr, color[0], color[1], color[2], color[3],
-                                        );
-                                        imm.vertex_3f(pos_attr, epos3[0], epos3[1], epos3[2]);
-                                    },
-                                );
-
-                                imm.end();
-                            }
-
-                            let mut edge_best = None;
-                            let mut edge_best_ray_dist = f64::MAX;
-                            let mut edge_best_dist_to_edge = f64::MAX;
-
-                            quads
-                                .iter()
-                                .for_each(|(uv1, uv2, epos1, epos2, epos3, epos4)| {
-                                    if let Some((t, _, _)) =
-                                        mesh_analyzer::config::ray_triangle_intersect(
-                                            &ray.0,
-                                            &ray.1,
-                                            &glm::convert(*epos1),
-                                            &glm::convert(*epos2),
-                                            &glm::convert(*epos4),
-                                        )
-                                    {
-                                        let dist_to_edge =
-                                            glm::cross(&(uv1 - (ray.0 + t * ray.1)), &(uv2 - uv1))
-                                                .norm()
-                                                / (uv2 - uv1).norm();
-                                        if dist_to_edge < edge_best_dist_to_edge
-                                        // && t < edge_best_ray_dist
-                                        {
-                                            edge_best = Some((ray.0 + t * ray.1, uv1, uv2));
-                                            edge_best_ray_dist = t;
-                                            edge_best_dist_to_edge = dist_to_edge;
-                                        }
-                                    }
-
-                                    if let Some((t, _, _)) =
-                                        mesh_analyzer::config::ray_triangle_intersect(
-                                            &ray.0,
-                                            &ray.1,
-                                            &glm::convert(*epos1),
-                                            &glm::convert(*epos4),
-                                            &glm::convert(*epos3),
-                                        )
-                                    {
-                                        let dist_to_edge =
-                                            glm::cross(&(uv1 - (ray.0 + t * ray.1)), &(uv2 - uv1))
-                                                .norm()
-                                                / (uv2 - uv1).norm();
-                                        if dist_to_edge < edge_best_dist_to_edge
-                                        // && t < edge_best_ray_dist
-                                        {
-                                            edge_best = Some((ray.0 + t * ray.1, uv1, uv2));
-                                            edge_best_ray_dist = t;
-                                            edge_best_dist_to_edge = dist_to_edge;
-                                        }
-                                    }
-                                });
-
-                            let color = glm::vec4(0.2, 0.5, 0.2, 1.0);
-
-                            if let Some((pos, uv1, uv2)) = edge_best {
-                                imm.begin(
-                                    quick_renderer::gpu_immediate::GPUPrimType::Points,
-                                    1,
-                                    smooth_color_3d_shader,
-                                );
-
-                                let pos: glm::Vec3 =
-                                    glm::convert(pos - 0.1 * (pos - camera.get_position()));
-
-                                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-                                imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
-
-                                imm.end();
-
-                                imm.begin(
-                                    quick_renderer::gpu_immediate::GPUPrimType::Lines,
-                                    4,
-                                    smooth_color_3d_shader,
-                                );
-
-                                let uv1: glm::Vec3 = glm::convert(*uv1);
-                                let uv2: glm::Vec3 = glm::convert(*uv2);
-
-                                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-                                imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
-                                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-                                imm.vertex_3f(pos_attr, uv1[0], uv1[1], uv1[2]);
-
-                                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-                                imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
-                                imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-                                imm.vertex_3f(pos_attr, uv2[0], uv2[1], uv2[2]);
-
-                                imm.end();
-                            }
-                        }
                     }
                     Err(_) => {
                         mesh_errors_maybe = Err(MeshExtensionError::NoMesh);
@@ -446,8 +243,6 @@ fn main() {
                         } else {
                             ui.label("Not visualzing the adaptive mesh part");
                         }
-
-                        ui.checkbox(&mut show_edge_triangles, "Show Edge Triangles");
 
                         config.draw_ui(&(), ui);
                         config.draw_ui_edit(&(), ui);
