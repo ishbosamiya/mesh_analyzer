@@ -4,6 +4,7 @@ use itertools::Itertools;
 use quick_renderer::{
     egui::{self, Color32},
     glm,
+    mesh::MeshUseShader,
 };
 use serde::{Deserialize, Serialize};
 
@@ -81,6 +82,9 @@ pub struct Config<END, EVD, EED, EFD> {
     #[serde(skip)]
     mesh_index: usize,
 
+    #[serde(default = "default_draw_mesh_with_shader")]
+    draw_mesh_with_shader: MeshUseShader,
+
     draw_wireframe: bool,
     draw_loose_edges: bool,
     #[serde(default = "default_draw_anisotropic_flippable_edges")]
@@ -112,6 +116,10 @@ pub struct Config<END, EVD, EED, EFD> {
     mesh_face_extra_data_type: PhantomData<EFD>,
 }
 
+fn default_draw_mesh_with_shader() -> MeshUseShader {
+    MeshUseShader::DirectionalLight
+}
+
 fn default_draw_anisotropic_flippable_edges() -> bool {
     false
 }
@@ -126,6 +134,8 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             meshes_to_load: "/tmp/adaptive_cloth/".to_string(),
             meshes: Vec::new(),
             mesh_index: 0,
+
+            draw_mesh_with_shader: default_draw_mesh_with_shader(),
 
             draw_wireframe: false,
             draw_loose_edges: false,
@@ -248,6 +258,21 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                 None
             }
         };
+
+        egui::ComboBox::from_label("Mesh Shader Type")
+            .selected_text(format!("{}", self.draw_mesh_with_shader))
+            .show_ui(ui, |ui| {
+                ui.selectable_value(
+                    &mut self.draw_mesh_with_shader,
+                    MeshUseShader::DirectionalLight,
+                    format!("{}", MeshUseShader::DirectionalLight),
+                );
+                ui.selectable_value(
+                    &mut self.draw_mesh_with_shader,
+                    MeshUseShader::FaceOrientation,
+                    format!("{}", MeshUseShader::FaceOrientation),
+                );
+            });
 
         ui.checkbox(&mut self.draw_wireframe, "Draw Wireframe");
         ui.checkbox(&mut self.draw_loose_edges, "Draw Loose Edges");
@@ -654,6 +679,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
             Err(MeshExtensionError::NoElementAtIndex(self.mesh_index)),
             |loaded_mesh| Ok(loaded_mesh.get_mesh()),
         )
+    }
+
+    pub fn get_draw_mesh_with_shader(&self) -> MeshUseShader {
+        self.draw_mesh_with_shader
     }
 
     pub fn get_draw_wireframe(&self) -> bool {

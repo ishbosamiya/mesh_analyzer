@@ -83,15 +83,26 @@ fn main() {
         .as_ref()
         .unwrap();
 
+    let face_orientation_shader = shader::builtins::get_face_orientation_shader()
+        .as_ref()
+        .unwrap();
+
     println!(
         "directional_light: uniforms: {:?} attributes: {:?}",
         directional_light_shader.get_uniforms(),
         directional_light_shader.get_attributes(),
     );
+
     println!(
         "smooth_color_3d: uniforms: {:?} attributes: {:?}",
         smooth_color_3d_shader.get_uniforms(),
         smooth_color_3d_shader.get_attributes(),
+    );
+
+    println!(
+        "face_orientation: uniforms: {:?} attributes: {:?}",
+        face_orientation_shader.get_uniforms(),
+        face_orientation_shader.get_attributes(),
     );
 
     unsafe {
@@ -154,6 +165,17 @@ fn main() {
                 smooth_color_3d_shader.set_mat4("view\0", &view_matrix);
                 smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
             }
+
+            {
+                face_orientation_shader.use_shader();
+                face_orientation_shader.set_mat4("projection\0", &projection_matrix);
+                face_orientation_shader.set_mat4("view\0", &view_matrix);
+                face_orientation_shader.set_mat4("model\0", &glm::identity());
+                face_orientation_shader
+                    .set_vec4("color_face_front\0", &glm::vec4(0.0, 0.0, 1.0, 1.0));
+                face_orientation_shader
+                    .set_vec4("color_face_back\0", &glm::vec4(1.0, 0.0, 0.0, 1.0));
+            }
         }
 
         let mesh_errors_maybe: Result<(), MeshExtensionError>;
@@ -163,15 +185,30 @@ fn main() {
             match config.get_mesh() {
                 Ok(result_mesh) => match result_mesh {
                     Ok(mesh) => {
-                        directional_light_shader.use_shader();
                         let model = glm::convert(config.get_mesh_transform().get_matrix());
-                        directional_light_shader.set_mat4("model\0", &model);
-                        mesh.draw(&mut MeshDrawData::new(
-                            &mut imm,
-                            MeshUseShader::DirectionalLight,
-                            None,
-                        ))
-                        .unwrap();
+                        match config.get_draw_mesh_with_shader() {
+                            MeshUseShader::DirectionalLight => {
+                                directional_light_shader.use_shader();
+                                directional_light_shader.set_mat4("model\0", &model);
+                                mesh.draw(&mut MeshDrawData::new(
+                                    &mut imm,
+                                    MeshUseShader::DirectionalLight,
+                                    None,
+                                ))
+                                .unwrap();
+                            }
+                            MeshUseShader::FaceOrientation => {
+                                face_orientation_shader.use_shader();
+                                face_orientation_shader.set_mat4("model\0", &model);
+                                mesh.draw(&mut MeshDrawData::new(
+                                    &mut imm,
+                                    MeshUseShader::FaceOrientation,
+                                    None,
+                                ))
+                                .unwrap();
+                            }
+                            MeshUseShader::SmoothColor3D => unreachable!(),
+                        }
 
                         mesh.draw_uv(&mut MeshUVDrawData::new(
                             &mut imm,
