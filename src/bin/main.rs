@@ -266,15 +266,28 @@ fn main() {
                 gl::Enable(gl::BLEND);
                 gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             }
-
-            if config.get_draw_infinite_grid() {
-                infinite_grid
-                    .draw(&mut InfiniteGridDrawData::new(
-                        projection_matrix,
-                        view_matrix,
-                        &mut imm,
-                    ))
-                    .unwrap();
+            {
+                // TODO(ish): this is a hack to make the grid show up
+                // better, it is too bright and lines are way too
+                // thick when the framebuffer is in srgb. Really need
+                // to spend the time to understand color related
+                // things better so things can be not hacky and
+                // visually pleasing
+                unsafe {
+                    gl::Disable(gl::FRAMEBUFFER_SRGB);
+                }
+                if config.get_draw_infinite_grid() {
+                    infinite_grid
+                        .draw(&mut InfiniteGridDrawData::new(
+                            projection_matrix,
+                            view_matrix,
+                            &mut imm,
+                        ))
+                        .unwrap();
+                }
+                unsafe {
+                    gl::Enable(gl::FRAMEBUFFER_SRGB);
+                }
             }
         }
 
