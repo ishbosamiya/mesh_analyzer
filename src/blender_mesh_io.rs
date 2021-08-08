@@ -862,55 +862,60 @@ impl<
 
         smooth_color_3d_shader.set_mat4("model\0", uv_plane_3d_model_matrix);
 
-        imm.begin(
-            GPUPrimType::Lines,
-            self.get_edges().len() * 2,
-            smooth_color_3d_shader,
-        );
+        if !self.get_edges().is_empty() {
+            imm.begin(
+                GPUPrimType::Lines,
+                self.get_edges().len() * 2,
+                smooth_color_3d_shader,
+            );
 
-        self.get_edges()
-            .iter()
-            .for_each(|(_, edge)| match edge.get_verts() {
-                Some((v1_index, v2_index)) => {
-                    let v1 = self.get_vert(*v1_index).unwrap();
-                    let v2 = self.get_vert(*v2_index).unwrap();
+            self.get_edges()
+                .iter()
+                .for_each(|(_, edge)| match edge.get_verts() {
+                    Some((v1_index, v2_index)) => {
+                        let v1 = self.get_vert(*v1_index).unwrap();
+                        let v2 = self.get_vert(*v2_index).unwrap();
 
-                    let uv_1_pos: glm::Vec3 =
-                        glm::convert(glm::vec2_to_vec3(v1.uv.as_ref().unwrap()));
-                    let uv_2_pos: glm::Vec3 =
-                        glm::convert(glm::vec2_to_vec3(v2.uv.as_ref().unwrap()));
+                        let uv_1_pos: glm::Vec3 =
+                            glm::convert(glm::vec2_to_vec3(v1.uv.as_ref().unwrap()));
+                        let uv_2_pos: glm::Vec3 =
+                            glm::convert(glm::vec2_to_vec3(v2.uv.as_ref().unwrap()));
 
-                    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-                    imm.vertex_3f(pos_attr, uv_1_pos[0], uv_1_pos[1], uv_1_pos[2]);
+                        imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                        imm.vertex_3f(pos_attr, uv_1_pos[0], uv_1_pos[1], uv_1_pos[2]);
 
-                    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
-                    imm.vertex_3f(pos_attr, uv_2_pos[0], uv_2_pos[1], uv_2_pos[2]);
-                }
-                None => {}
+                        imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                        imm.vertex_3f(pos_attr, uv_2_pos[0], uv_2_pos[1], uv_2_pos[2]);
+                    }
+                    None => {}
+                });
+
+            imm.end();
+        }
+
+        if !self.get_faces().is_empty() {
+            // draw the faces
+            imm.begin(
+                GPUPrimType::Tris,
+                self.get_faces().len() * 3,
+                smooth_color_3d_shader,
+            );
+
+            self.get_faces().iter().for_each(|(_, face)| {
+                assert_eq!(face.get_verts().len(), 3);
+                face.get_verts().iter().for_each(|vert_index| {
+                    let vert = self.get_vert(*vert_index).unwrap();
+
+                    let uv_pos: glm::Vec3 =
+                        glm::convert(glm::vec2_to_vec3(vert.uv.as_ref().unwrap()));
+
+                    imm.attr_4f(color_attr, 0.6, 0.6, 0.6, 0.03);
+                    imm.vertex_3f(pos_attr, uv_pos[0], uv_pos[1], uv_pos[2]);
+                });
             });
 
-        imm.end();
-
-        // draw the faces
-        imm.begin(
-            GPUPrimType::Tris,
-            self.get_faces().len() * 3,
-            smooth_color_3d_shader,
-        );
-
-        self.get_faces().iter().for_each(|(_, face)| {
-            assert_eq!(face.get_verts().len(), 3);
-            face.get_verts().iter().for_each(|vert_index| {
-                let vert = self.get_vert(*vert_index).unwrap();
-
-                let uv_pos: glm::Vec3 = glm::convert(glm::vec2_to_vec3(vert.uv.as_ref().unwrap()));
-
-                imm.attr_4f(color_attr, 0.6, 0.6, 0.6, 0.03);
-                imm.vertex_3f(pos_attr, uv_pos[0], uv_pos[1], uv_pos[2]);
-            });
-        });
-
-        imm.end();
+            imm.end();
+        }
     }
 
     fn get_node_unknown_gen(&self, index: usize) -> Result<&mesh::Node<END>, MeshExtensionError> {
