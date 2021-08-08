@@ -267,13 +267,15 @@ fn main() {
                 gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             }
 
-            infinite_grid
-                .draw(&mut InfiniteGridDrawData::new(
-                    projection_matrix,
-                    view_matrix,
-                    &mut imm,
-                ))
-                .unwrap();
+            if config.get_draw_infinite_grid() {
+                infinite_grid
+                    .draw(&mut InfiniteGridDrawData::new(
+                        projection_matrix,
+                        view_matrix,
+                        &mut imm,
+                    ))
+                    .unwrap();
+            }
         }
 
         // GUI starts

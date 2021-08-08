@@ -85,6 +85,8 @@ pub struct Config<END, EVD, EED, EFD> {
     #[serde(default = "default_draw_mesh_with_shader")]
     draw_mesh_with_shader: MeshUseShader,
 
+    #[serde(default = "default_draw_infinite_grid")]
+    draw_infinite_grid: bool,
     draw_wireframe: bool,
     draw_loose_edges: bool,
     #[serde(default = "default_draw_anisotropic_flippable_edges")]
@@ -121,6 +123,10 @@ pub struct Config<END, EVD, EED, EFD> {
     mesh_face_extra_data_type: PhantomData<EFD>,
 }
 
+fn default_draw_infinite_grid() -> bool {
+    true
+}
+
 fn default_face_front_color() -> glm::DVec4 {
     glm::vec4(0.21, 0.42, 1.0, 1.0)
 }
@@ -150,6 +156,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
 
             draw_mesh_with_shader: default_draw_mesh_with_shader(),
 
+            draw_infinite_grid: default_draw_infinite_grid(),
             draw_wireframe: false,
             draw_loose_edges: false,
             draw_anisotropic_flippable_edges: default_draw_anisotropic_flippable_edges(),
@@ -290,6 +297,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                 );
             });
 
+        ui.checkbox(&mut self.draw_infinite_grid, "Draw Floor Grid");
         ui.checkbox(&mut self.draw_wireframe, "Draw Wireframe");
         ui.checkbox(&mut self.draw_loose_edges, "Draw Loose Edges");
         ui.checkbox(
@@ -701,6 +709,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
     pub fn get_draw_mesh_with_shader(&self) -> MeshUseShader {
         self.draw_mesh_with_shader
+    }
+
+    pub fn get_draw_infinite_grid(&self) -> bool {
+        self.draw_infinite_grid
     }
 
     pub fn get_draw_wireframe(&self) -> bool {
