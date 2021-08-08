@@ -171,10 +171,14 @@ fn main() {
                 face_orientation_shader.set_mat4("projection\0", &projection_matrix);
                 face_orientation_shader.set_mat4("view\0", &view_matrix);
                 face_orientation_shader.set_mat4("model\0", &glm::identity());
-                face_orientation_shader
-                    .set_vec4("color_face_front\0", &glm::vec4(0.0, 0.0, 1.0, 1.0));
-                face_orientation_shader
-                    .set_vec4("color_face_back\0", &glm::vec4(1.0, 0.0, 0.0, 1.0));
+                face_orientation_shader.set_vec4(
+                    "color_face_front\0",
+                    &glm::convert(config.get_face_front_color()),
+                );
+                face_orientation_shader.set_vec4(
+                    "color_face_back\0",
+                    &glm::convert(config.get_face_back_color()),
+                );
             }
         }
 

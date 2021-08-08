@@ -108,12 +108,25 @@ pub struct Config<END, EVD, EED, EFD> {
     #[serde(default = "default_anisotropic_flippable_edge_color")]
     anisotropic_flippable_edge_color: glm::DVec4,
     face_color: (glm::DVec4, glm::DVec4),
+    #[serde(default = "default_face_front_color")]
+    face_front_color: glm::DVec4,
+    #[serde(default = "default_face_back_color")]
+    face_back_color: glm::DVec4,
+
     normal_pull_factor: f64,
 
     mesh_node_extra_data_type: PhantomData<END>,
     mesh_vert_extra_data_type: PhantomData<EVD>,
     mesh_edge_extra_data_type: PhantomData<EED>,
     mesh_face_extra_data_type: PhantomData<EFD>,
+}
+
+fn default_face_front_color() -> glm::DVec4 {
+    glm::vec4(0.21, 0.42, 1.0, 1.0)
+}
+
+fn default_face_back_color() -> glm::DVec4 {
+    glm::vec4(0.94, 0.22, 0.22, 1.0)
 }
 
 fn default_draw_mesh_with_shader() -> MeshUseShader {
@@ -159,6 +172,9 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
                 glm::vec4(1.0, 0.17, 0.01, 0.4),
                 glm::vec4(0.07, 1.0, 0.4, 0.4),
             ),
+            face_front_color: default_face_front_color(),
+            face_back_color: default_face_back_color(),
+
             normal_pull_factor: 0.2,
 
             mesh_node_extra_data_type: PhantomData,
@@ -353,6 +369,8 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             &mut self.anisotropic_flippable_edge_color,
         );
         color_edit_button_dvec4_range(ui, "Fancy Face Color Range", &mut self.face_color);
+        color_edit_button_dvec4(ui, "Face Front Color", &mut self.face_front_color);
+        color_edit_button_dvec4(ui, "Face Back Color", &mut self.face_back_color);
         ui.add(
             egui::Slider::new(&mut self.normal_pull_factor, 0.0..=3.0)
                 .text("Bendiness of the fancy edges and faces"),
@@ -739,6 +757,14 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
     pub fn get_face_color(&self) -> (glm::DVec4, glm::DVec4) {
         self.face_color
+    }
+
+    pub fn get_face_front_color(&self) -> glm::DVec4 {
+        self.face_front_color
+    }
+
+    pub fn get_face_back_color(&self) -> glm::DVec4 {
+        self.face_back_color
     }
 
     pub fn get_normal_pull_factor(&self) -> f64 {
