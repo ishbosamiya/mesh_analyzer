@@ -1,5 +1,7 @@
 use quick_renderer::mesh::builtins::get_ico_sphere_subd_00;
-use quick_renderer::mesh::MeshDrawData;
+use quick_renderer::mesh::{
+    apply_model_matrix_to_normal, apply_model_matrix_vec2, apply_model_matrix_vec3, MeshDrawData,
+};
 use quick_renderer::shader::builtins::get_smooth_color_3d_shader;
 use rmps::Deserializer;
 use serde::{Deserialize, Serialize};
@@ -11,9 +13,9 @@ use quick_renderer::drawable::Drawable;
 use quick_renderer::gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode};
 use quick_renderer::{glm, mesh, shader};
 
+use crate::config;
 use crate::curve::{PointNormalTriangle, PointNormalTriangleDrawData};
 use crate::prelude::DrawUI;
-use crate::{config, math};
 use crate::{
     config::Config,
     curve::{CubicBezierCurve, CubicBezierCurveDrawData},
@@ -971,6 +973,83 @@ impl<
                 });
         }
 
+        if config.get_draw_face_normals() && !self.get_faces().is_empty() {
+            let mesh_3d_model_matrix = config.get_mesh_transform().get_matrix();
+
+            let color: glm::Vec4 = glm::convert(config.get_face_normal_color());
+
+            let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
+                .as_ref()
+                .unwrap();
+
+            smooth_color_3d_shader.use_shader();
+            smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
+
+            let format = imm.get_cleared_vertex_format();
+            let pos_attr = format.add_attribute(
+                "in_pos\0".to_string(),
+                GPUVertCompType::F32,
+                3,
+                GPUVertFetchMode::Float,
+            );
+            let color_attr = format.add_attribute(
+                "in_color\0".to_string(),
+                GPUVertCompType::F32,
+                4,
+                GPUVertFetchMode::Float,
+            );
+
+            imm.begin_at_most(
+                GPUPrimType::Lines,
+                self.get_faces().len() * 2,
+                smooth_color_3d_shader,
+            );
+
+            self.get_faces()
+                .iter()
+                .filter(|(_, face)| face.get_verts().len() >= 3)
+                .for_each(|(_, face)| {
+                    let normal_start_pos =
+                        face.get_verts()
+                            .iter()
+                            .fold(glm::zero(), |acc: glm::DVec3, vert_index| {
+                                let n = self
+                                    .get_node(
+                                        self.get_vert(*vert_index).unwrap().get_node().unwrap(),
+                                    )
+                                    .unwrap();
+                                acc + apply_model_matrix_vec3(&n.pos, &mesh_3d_model_matrix)
+                            })
+                            / face.get_verts().len() as f64;
+
+                    let normal_start_pos: glm::Vec3 = glm::convert(normal_start_pos);
+                    let normal_end_pos: glm::Vec3 = normal_start_pos
+                        + glm::convert::<_, glm::Vec3>(
+                            apply_model_matrix_to_normal(
+                                &face.normal.unwrap(),
+                                &mesh_3d_model_matrix,
+                            ) * config.get_face_normal_size(),
+                        );
+
+                    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                    imm.vertex_3f(
+                        pos_attr,
+                        normal_start_pos[0],
+                        normal_start_pos[1],
+                        normal_start_pos[2],
+                    );
+                    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                    imm.vertex_3f(
+                        pos_attr,
+                        normal_end_pos[0],
+                        normal_end_pos[1],
+                        normal_end_pos[2],
+                    );
+                });
+
+            imm.end();
+        }
+
         match config.get_element() {
             crate::config::Element::Node => {
                 // TODO(ish): handle showing which verts couldn't be
@@ -1615,18 +1694,6 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
                 .unwrap();
         }
     }
-}
-
-pub fn apply_model_matrix_vec2(v: &glm::DVec2, model: &glm::DMat4) -> glm::DVec3 {
-    glm::vec4_to_vec3(&(model * math::append_one(&glm::vec2_to_vec3(v))))
-}
-
-pub fn apply_model_matrix_vec3(v: &glm::DVec3, model: &glm::DMat4) -> glm::DVec3 {
-    glm::vec4_to_vec3(&(model * math::append_one(v)))
-}
-
-pub fn apply_model_matrix_to_normal(normal: &glm::DVec3, model: &glm::DMat4) -> glm::DVec3 {
-    apply_model_matrix_vec3(normal, &glm::inverse_transpose(*model))
 }
 
 #[cfg(test)]

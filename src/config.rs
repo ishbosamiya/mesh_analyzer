@@ -4,14 +4,12 @@ use itertools::Itertools;
 use quick_renderer::{
     egui::{self, Color32},
     glm,
-    mesh::MeshUseShader,
+    mesh::{apply_model_matrix_vec2, apply_model_matrix_vec3, MeshUseShader},
 };
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    blender_mesh_io::{
-        apply_model_matrix_vec2, apply_model_matrix_vec3, EmptyAdaptiveMesh, MeshExtensionError,
-    },
+    blender_mesh_io::{EmptyAdaptiveMesh, MeshExtensionError},
     draw_ui::DrawUI,
     math::{self, Transform},
     prelude::MeshExtension,
@@ -87,6 +85,8 @@ pub struct Config<END, EVD, EED, EFD> {
 
     #[serde(default = "default_draw_infinite_grid")]
     draw_infinite_grid: bool,
+    #[serde(default = "default_draw_face_normals")]
+    draw_face_normals: bool,
     draw_wireframe: bool,
     draw_loose_edges: bool,
     #[serde(default = "default_draw_anisotropic_flippable_edges")]
@@ -114,7 +114,11 @@ pub struct Config<END, EVD, EED, EFD> {
     face_front_color: glm::DVec4,
     #[serde(default = "default_face_back_color")]
     face_back_color: glm::DVec4,
+    #[serde(default = "default_face_normal_color")]
+    face_normal_color: glm::DVec4,
 
+    #[serde(default = "default_face_normal_size")]
+    face_normal_size: f64,
     normal_pull_factor: f64,
 
     mesh_node_extra_data_type: PhantomData<END>,
@@ -127,12 +131,24 @@ fn default_draw_infinite_grid() -> bool {
     true
 }
 
+fn default_draw_face_normals() -> bool {
+    false
+}
+
 fn default_face_front_color() -> glm::DVec4 {
     glm::vec4(0.21, 0.42, 1.0, 1.0)
 }
 
 fn default_face_back_color() -> glm::DVec4 {
     glm::vec4(0.94, 0.22, 0.22, 1.0)
+}
+
+fn default_face_normal_color() -> glm::DVec4 {
+    glm::vec4(1.0, 0.22, 0.22, 1.0)
+}
+
+fn default_face_normal_size() -> f64 {
+    1.0
 }
 
 fn default_draw_mesh_with_shader() -> MeshUseShader {
@@ -157,6 +173,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             draw_mesh_with_shader: default_draw_mesh_with_shader(),
 
             draw_infinite_grid: default_draw_infinite_grid(),
+            draw_face_normals: default_draw_face_normals(),
             draw_wireframe: false,
             draw_loose_edges: false,
             draw_anisotropic_flippable_edges: default_draw_anisotropic_flippable_edges(),
@@ -181,8 +198,10 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             ),
             face_front_color: default_face_front_color(),
             face_back_color: default_face_back_color(),
+            face_normal_color: default_face_normal_color(),
 
             normal_pull_factor: 0.2,
+            face_normal_size: default_face_normal_size(),
 
             mesh_node_extra_data_type: PhantomData,
             mesh_vert_extra_data_type: PhantomData,
@@ -298,6 +317,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             });
 
         ui.checkbox(&mut self.draw_infinite_grid, "Draw Floor Grid");
+        ui.checkbox(&mut self.draw_face_normals, "Draw Face Normals");
         ui.checkbox(&mut self.draw_wireframe, "Draw Wireframe");
         ui.checkbox(&mut self.draw_loose_edges, "Draw Loose Edges");
         ui.checkbox(
@@ -379,10 +399,14 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
         color_edit_button_dvec4_range(ui, "Fancy Face Color Range", &mut self.face_color);
         color_edit_button_dvec4(ui, "Face Front Color", &mut self.face_front_color);
         color_edit_button_dvec4(ui, "Face Back Color", &mut self.face_back_color);
+        color_edit_button_dvec4(ui, "Face Normal Color", &mut self.face_normal_color);
+
         ui.add(
             egui::Slider::new(&mut self.normal_pull_factor, 0.0..=3.0)
                 .text("Bendiness of the fancy edges and faces"),
         );
+
+        ui.add(egui::Slider::new(&mut self.face_normal_size, 0.0..=2.0).text("Face normal size"));
 
         ui.separator();
 
@@ -715,6 +739,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
         self.draw_infinite_grid
     }
 
+    pub fn get_draw_face_normals(&self) -> bool {
+        self.draw_face_normals
+    }
+
     pub fn get_draw_wireframe(&self) -> bool {
         self.draw_wireframe
     }
@@ -779,8 +807,16 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
         self.face_back_color
     }
 
+    pub fn get_face_normal_color(&self) -> glm::DVec4 {
+        self.face_normal_color
+    }
+
     pub fn get_normal_pull_factor(&self) -> f64 {
         self.normal_pull_factor
+    }
+
+    pub fn get_face_normal_size(&self) -> f64 {
+        self.face_normal_size
     }
 
     pub fn get_mesh_transform(&self) -> &Transform {
