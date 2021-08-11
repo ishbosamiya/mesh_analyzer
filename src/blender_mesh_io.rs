@@ -829,57 +829,108 @@ impl DrawUI for MeshElementReferences {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MeshToBlenderMeshIndexMap {
-    pub node_pos_index_map: HashMap<usize, io_structs::NodeIndex>,
-    pub vert_pos_index_map: HashMap<usize, io_structs::VertIndex>,
-    pub edge_pos_index_map: HashMap<usize, io_structs::EdgeIndex>,
-    pub face_pos_index_map: HashMap<usize, io_structs::FaceIndex>,
+    node_pos_index_map: HashMap<io_structs::NodeIndex, usize>,
+    vert_pos_index_map: HashMap<io_structs::VertIndex, usize>,
+    edge_pos_index_map: HashMap<io_structs::EdgeIndex, usize>,
+    face_pos_index_map: HashMap<io_structs::FaceIndex, usize>,
+
+    node_pos_index_inverted_map: HashMap<usize, io_structs::NodeIndex>,
+    vert_pos_index_inverted_map: HashMap<usize, io_structs::VertIndex>,
+    edge_pos_index_inverted_map: HashMap<usize, io_structs::EdgeIndex>,
+    face_pos_index_inverted_map: HashMap<usize, io_structs::FaceIndex>,
 }
 
 impl MeshToBlenderMeshIndexMap {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        node_pos_index_map: HashMap<usize, io_structs::NodeIndex>,
-        vert_pos_index_map: HashMap<usize, io_structs::VertIndex>,
-        edge_pos_index_map: HashMap<usize, io_structs::EdgeIndex>,
-        face_pos_index_map: HashMap<usize, io_structs::FaceIndex>,
+        node_pos_index_map: HashMap<io_structs::NodeIndex, usize>,
+        vert_pos_index_map: HashMap<io_structs::VertIndex, usize>,
+        edge_pos_index_map: HashMap<io_structs::EdgeIndex, usize>,
+        face_pos_index_map: HashMap<io_structs::FaceIndex, usize>,
+        node_pos_index_inverted_map: HashMap<usize, io_structs::NodeIndex>,
+        vert_pos_index_inverted_map: HashMap<usize, io_structs::VertIndex>,
+        edge_pos_index_inverted_map: HashMap<usize, io_structs::EdgeIndex>,
+        face_pos_index_inverted_map: HashMap<usize, io_structs::FaceIndex>,
     ) -> Self {
         Self {
             node_pos_index_map,
             vert_pos_index_map,
             edge_pos_index_map,
             face_pos_index_map,
+
+            node_pos_index_inverted_map,
+            vert_pos_index_inverted_map,
+            edge_pos_index_inverted_map,
+            face_pos_index_inverted_map,
         }
     }
 
     pub fn from_blender_mesh<END, EVD, EED, EFD>(
         io_mesh: &io_structs::Mesh<END, EVD, EED, EFD>,
     ) -> Self {
-        let node_pos_index_map = io_mesh
+        let node_pos_index_inverted_map = io_mesh
             .node_pos_index_map
             .iter()
             .map(|(index, pos)| (*pos, *index))
             .collect();
-        let vert_pos_index_map = io_mesh
+        let vert_pos_index_inverted_map = io_mesh
             .vert_pos_index_map
             .iter()
             .map(|(index, pos)| (*pos, *index))
             .collect();
-        let edge_pos_index_map = io_mesh
+        let edge_pos_index_inverted_map = io_mesh
             .edge_pos_index_map
             .iter()
             .map(|(index, pos)| (*pos, *index))
             .collect();
-        let face_pos_index_map = io_mesh
+        let face_pos_index_inverted_map = io_mesh
             .face_pos_index_map
             .iter()
             .map(|(index, pos)| (*pos, *index))
             .collect();
 
         Self::new(
-            node_pos_index_map,
-            vert_pos_index_map,
-            edge_pos_index_map,
-            face_pos_index_map,
+            io_mesh.node_pos_index_map.clone(),
+            io_mesh.vert_pos_index_map.clone(),
+            io_mesh.edge_pos_index_map.clone(),
+            io_mesh.face_pos_index_map.clone(),
+            node_pos_index_inverted_map,
+            vert_pos_index_inverted_map,
+            edge_pos_index_inverted_map,
+            face_pos_index_inverted_map,
         )
+    }
+
+    pub fn get_node_pos_index_map(&self) -> &HashMap<io_structs::NodeIndex, usize> {
+        &self.node_pos_index_map
+    }
+
+    pub fn get_vert_pos_index_map(&self) -> &HashMap<io_structs::VertIndex, usize> {
+        &self.vert_pos_index_map
+    }
+
+    pub fn get_edge_pos_index_map(&self) -> &HashMap<io_structs::EdgeIndex, usize> {
+        &self.edge_pos_index_map
+    }
+
+    pub fn get_face_pos_index_map(&self) -> &HashMap<io_structs::FaceIndex, usize> {
+        &self.face_pos_index_map
+    }
+
+    pub fn get_node_pos_index_inverted_map(&self) -> &HashMap<usize, io_structs::NodeIndex> {
+        &self.node_pos_index_inverted_map
+    }
+
+    pub fn get_vert_pos_index_inverted_map(&self) -> &HashMap<usize, io_structs::VertIndex> {
+        &self.vert_pos_index_inverted_map
+    }
+
+    pub fn get_edge_pos_index_inverted_map(&self) -> &HashMap<usize, io_structs::EdgeIndex> {
+        &self.edge_pos_index_inverted_map
+    }
+
+    pub fn get_face_pos_index_inverted_map(&self) -> &HashMap<usize, io_structs::FaceIndex> {
+        &self.face_pos_index_inverted_map
     }
 }
 
