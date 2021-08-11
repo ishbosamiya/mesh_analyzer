@@ -188,7 +188,7 @@ pub(crate) mod io_structs {
     pub type AdjacentVerts = IncidentVerts;
     pub type EdgeVerts = (VertIndex, VertIndex);
 
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct Node<T> {
         self_index: NodeIndex,
         verts: IncidentVerts,
@@ -198,7 +198,7 @@ pub(crate) mod io_structs {
         extra_data: Option<T>,
     }
 
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct Vert<T> {
         self_index: VertIndex,
         edges: IncidentEdges,
@@ -208,7 +208,7 @@ pub(crate) mod io_structs {
         extra_data: Option<T>,
     }
 
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct Edge<T> {
         self_index: EdgeIndex,
         faces: IncidentFaces,
@@ -217,7 +217,7 @@ pub(crate) mod io_structs {
         extra_data: Option<T>,
     }
 
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct Face<T> {
         self_index: FaceIndex,
         verts: AdjacentVerts,
@@ -226,7 +226,7 @@ pub(crate) mod io_structs {
         extra_data: Option<T>,
     }
 
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct Mesh<END, EVD, EED, EFD> {
         nodes_str: String,
         nodes: Vec<Node<END>>,
@@ -473,6 +473,13 @@ pub(crate) mod io_structs {
             Ok(mesh)
         }
     }
+
+    // pub type AdaptiveNode<END> = Node<NodeData<END>>;
+    // pub type AdaptiveVert = Vert<VertData>;
+    // pub type AdaptiveEdge = Edge<EdgeData>;
+    // pub type AdaptiveFace = Face<EmptyExtraData>;
+    pub type AdaptiveMesh<END> = Mesh<NodeData<END>, VertData, EdgeData, EmptyExtraData>;
+    pub type EmptyAdaptiveMesh = AdaptiveMesh<EmptyExtraData>;
 }
 
 pub type AdaptiveNode<END> = mesh::Node<io_structs::NodeData<END>>;
@@ -822,10 +829,14 @@ impl DrawUI for MeshElementReferences {
 pub trait MeshExtension<'de, END, EVD, EED, EFD> {
     type Error;
 
-    fn read_file<P: AsRef<Path>>(path: P) -> Result<Self, Self::Error>
+    fn read_file<P: AsRef<Path>>(
+        path: P,
+    ) -> Result<(Self, io_structs::Mesh<END, EVD, EED, EFD>), Self::Error>
     where
         Self: Sized;
-    fn read_msgpack<P: AsRef<Path>>(path: P) -> Result<Self, Self::Error>
+    fn read_msgpack<P: AsRef<Path>>(
+        path: P,
+    ) -> Result<(Self, io_structs::Mesh<END, EVD, EED, EFD>), Self::Error>
     where
         Self: Sized;
 
@@ -857,15 +868,17 @@ pub trait MeshExtension<'de, END, EVD, EED, EFD> {
 
 impl<
         'de,
-        END: serde::Deserialize<'de> + std::fmt::Debug,
-        EVD: serde::Deserialize<'de> + std::fmt::Debug,
-        EED: serde::Deserialize<'de> + std::fmt::Debug,
-        EFD: serde::Deserialize<'de> + std::fmt::Debug,
+        END: serde::Deserialize<'de> + std::fmt::Debug + Clone,
+        EVD: serde::Deserialize<'de> + std::fmt::Debug + Clone,
+        EED: serde::Deserialize<'de> + std::fmt::Debug + Clone,
+        EFD: serde::Deserialize<'de> + std::fmt::Debug + Clone,
     > MeshExtension<'de, END, EVD, EED, EFD> for mesh::Mesh<END, EVD, EED, EFD>
 {
     type Error = MeshExtensionError;
 
-    fn read_file<P: AsRef<Path>>(path: P) -> Result<Self, MeshExtensionError> {
+    fn read_file<P: AsRef<Path>>(
+        path: P,
+    ) -> Result<(Self, io_structs::Mesh<END, EVD, EED, EFD>), MeshExtensionError> {
         match path.as_ref().extension() {
             Some(extension) => match extension.to_str().unwrap() {
                 "mesh" => Self::read_msgpack(path),
@@ -875,7 +888,9 @@ impl<
         }
     }
 
-    fn read_msgpack<P: AsRef<Path>>(path: P) -> Result<Self, MeshExtensionError> {
+    fn read_msgpack<P: AsRef<Path>>(
+        path: P,
+    ) -> Result<(Self, io_structs::Mesh<END, EVD, EED, EFD>), MeshExtensionError> {
         let file = std::fs::read(path).unwrap();
 
         let mut de = Deserializer::new(std::io::Cursor::new(&file));
@@ -883,9 +898,9 @@ impl<
         let meshio: io_structs::Mesh<END, EVD, EED, EFD> =
             serde_path_to_error::deserialize(&mut de)?;
 
-        let mesh: Result<Self, ConversionError> = meshio.try_into();
+        let mesh: Result<Self, ConversionError> = meshio.clone().try_into();
 
-        Ok(mesh?)
+        Ok((mesh?, meshio))
     }
 
     fn draw_uv(&self, draw_data: &mut MeshUVDrawData) {
