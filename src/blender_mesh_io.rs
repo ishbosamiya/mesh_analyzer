@@ -1141,6 +1141,7 @@ impl<
     ) -> Result<(), MeshExtensionError> {
         if config.get_draw_loose_edges() {
             let uv_plane_3d_model_matrix = config.get_uv_plane_3d_transform().get_matrix();
+            let mesh_3d_model_matrix = config.get_mesh_transform().get_matrix();
             self.get_edges()
                 .iter()
                 .filter(|(_, edge)| edge.is_loose())
@@ -1148,6 +1149,14 @@ impl<
                     self.draw_fancy_edge(
                         edge,
                         &uv_plane_3d_model_matrix,
+                        imm,
+                        glm::convert(config.get_loose_edge_color()),
+                        config.get_normal_pull_factor(),
+                    );
+
+                    self.draw_fancy_node_edge(
+                        edge,
+                        &mesh_3d_model_matrix,
                         imm,
                         glm::convert(config.get_loose_edge_color()),
                         config.get_normal_pull_factor(),
