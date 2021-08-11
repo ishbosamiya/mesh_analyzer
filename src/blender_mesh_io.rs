@@ -379,11 +379,17 @@ pub(crate) mod io_structs {
                         vert_node = vert.1.get_node_mut();
                     }
 
-                    *vert_node = io_vert.node.as_ref().map(|io_vert_node_index| {
-                        // TODO(ish): switch this to a error instead of just unwrapping
-                        let node_i = io_mesh.node_pos_index_map.get(io_vert_node_index).unwrap();
-                        mesh::NodeIndex(nodes.get_unknown_gen(*node_i).unwrap().1)
-                    });
+                    *vert_node = io_vert.node.as_ref().map_or_else(
+                        || Ok(None),
+                        |io_vert_node_index| {
+                            let node_i = io_mesh.node_pos_index_map.get(io_vert_node_index).ok_or(
+                                ConversionError::NoElementInPosIndexMap(*io_vert_node_index),
+                            )?;
+                            Ok(Some(mesh::NodeIndex(
+                                nodes.get_unknown_gen(*node_i).unwrap().1,
+                            )))
+                        },
+                    )?;
 
                     Ok(())
                 })?;
@@ -396,31 +402,29 @@ pub(crate) mod io_structs {
                     unsafe {
                         edge_verts = edge.1.get_verts_mut();
                     }
-                    *edge_verts =
-                        io_edge
-                            .verts
-                            .map(|(io_edge_vert_1_index, io_edge_vert_2_index)| {
-                                // TODO(ish): switch this to a error instead of just unwrapping
-                                let edge_vert_1_i = io_mesh
-                                    .vert_pos_index_map
-                                    .get(&io_edge_vert_1_index)
-                                    .unwrap();
+                    *edge_verts = io_edge.verts.map_or_else(
+                        || Ok(None),
+                        |(io_edge_vert_1_index, io_edge_vert_2_index)| {
+                            let edge_vert_1_i = io_mesh
+                                .vert_pos_index_map
+                                .get(&io_edge_vert_1_index)
+                                .ok_or(ConversionError::NoElementInPosIndexMap(
+                                    io_edge_vert_1_index,
+                                ))?;
 
-                                // TODO(ish): switch this to a error instead of just unwrapping
-                                let edge_vert_2_i = io_mesh
-                                    .vert_pos_index_map
-                                    .get(&io_edge_vert_2_index)
-                                    .unwrap();
+                            let edge_vert_2_i = io_mesh
+                                .vert_pos_index_map
+                                .get(&io_edge_vert_2_index)
+                                .ok_or(ConversionError::NoElementInPosIndexMap(
+                                    io_edge_vert_2_index,
+                                ))?;
 
-                                (
-                                    mesh::VertIndex(
-                                        verts.get_unknown_gen(*edge_vert_1_i).unwrap().1,
-                                    ),
-                                    mesh::VertIndex(
-                                        verts.get_unknown_gen(*edge_vert_2_i).unwrap().1,
-                                    ),
-                                )
-                            });
+                            Ok(Some((
+                                mesh::VertIndex(verts.get_unknown_gen(*edge_vert_1_i).unwrap().1),
+                                mesh::VertIndex(verts.get_unknown_gen(*edge_vert_2_i).unwrap().1),
+                            )))
+                        },
+                    )?;
 
                     let edge_faces;
                     unsafe {
