@@ -109,6 +109,8 @@ pub struct Config<END, EVD, EED, EFD> {
     element: Element,
     #[serde(skip)]
     element_index: usize,
+    #[serde(skip)]
+    blender_element_index: String,
 
     mesh_transform: math::Transform,
 
@@ -193,6 +195,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
 
             element: Element::Node,
             element_index: 0,
+            blender_element_index: String::new(),
 
             mesh_transform: Default::default(),
 
@@ -378,6 +381,49 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                 .clamp_to_range(true)
                 .text("Element Index"),
         );
+
+        ui.horizontal(|ui| {
+            ui.text_edit_singleline(&mut self.blender_element_index);
+            if ui.button("Load Blender Element Position").clicked() {
+                if let Ok(pos_index) = self.blender_element_index.parse::<usize>() {
+                    if let Some(loaded_mesh) = self.meshes.get(self.mesh_index) {
+                        if let Some(map) = loaded_mesh.get_mesh_pos_index_map() {
+                            self.element_index = match self.element {
+                                Element::Node => map
+                                    .get_node_pos_index_map()
+                                    .iter()
+                                    .find(|(index, _)| index.get_index() == pos_index)
+                                    .map(|(_, pos)| *pos)
+                                    .unwrap_or(self.element_index),
+                                Element::Vert => map
+                                    .get_vert_pos_index_map()
+                                    .iter()
+                                    .find(|(index, _)| index.get_index() == pos_index)
+                                    .map(|(_, pos)| *pos)
+                                    .unwrap_or(self.element_index),
+                                Element::Edge => map
+                                    .get_edge_pos_index_map()
+                                    .iter()
+                                    .find(|(index, _)| index.get_index() == pos_index)
+                                    .map(|(_, pos)| *pos)
+                                    .unwrap_or(self.element_index),
+                                Element::Face => map
+                                    .get_face_pos_index_map()
+                                    .iter()
+                                    .find(|(index, _)| index.get_index() == pos_index)
+                                    .map(|(_, pos)| *pos)
+                                    .unwrap_or(self.element_index),
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        let mesh = match self.meshes.get(self.mesh_index) {
+            Some(loaded_mesh) => loaded_mesh.get_mesh().as_ref().ok(),
+            None => None,
+        };
 
         egui::Window::new("Element references").show(ui.ctx(), |ui| {
             if let Some(mesh) = mesh {

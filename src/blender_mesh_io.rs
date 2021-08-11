@@ -93,6 +93,12 @@ pub(crate) mod io_structs {
         generation: usize,
     }
 
+    impl Index {
+        pub fn get_index(&self) -> usize {
+            self.index
+        }
+    }
+
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub struct NodeData<T> {
         node_data_str: String,
