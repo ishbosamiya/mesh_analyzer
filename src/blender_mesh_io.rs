@@ -6,6 +6,7 @@ use quick_renderer::shader::builtins::get_smooth_color_3d_shader;
 use rmps::Deserializer;
 use serde::{Deserialize, Serialize};
 
+use std::convert::TryInto;
 use std::fmt::Display;
 use std::path::Path;
 
@@ -21,8 +22,10 @@ use crate::{
     curve::{CubicBezierCurve, CubicBezierCurveDrawData},
 };
 
+use self::io_structs::ConversionError;
+
 pub(crate) mod io_structs {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, convert::TryFrom, fmt::Display};
 
     use generational_arena::Arena;
     use quick_renderer::{glm, mesh};
@@ -256,8 +259,27 @@ pub(crate) mod io_structs {
         }
     }
 
-    impl<END, EVD, EED, EFD> From<Mesh<END, EVD, EED, EFD>> for mesh::Mesh<END, EVD, EED, EFD> {
-        fn from(mut io_mesh: Mesh<END, EVD, EED, EFD>) -> Self {
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    pub enum ConversionError {
+        NoElementInPosIndexMap(Index),
+    }
+
+    impl Display for ConversionError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                ConversionError::NoElementInPosIndexMap(index) => {
+                    write!(f, "No element in pos index map: {:?}", index)
+                }
+            }
+        }
+    }
+
+    impl std::error::Error for ConversionError {}
+
+    impl<END, EVD, EED, EFD> TryFrom<Mesh<END, EVD, EED, EFD>> for mesh::Mesh<END, EVD, EED, EFD> {
+        type Error = ConversionError;
+
+        fn try_from(mut io_mesh: Mesh<END, EVD, EED, EFD>) -> Result<Self, Self::Error> {
             // The referencing between the elements is set after all
             // the elements are added to their respective arenas so
             // that the positional mapping can be used to the correct
@@ -319,29 +341,38 @@ pub(crate) mod io_structs {
             nodes
                 .iter_mut()
                 .zip(io_mesh.nodes.iter())
-                .for_each(|(node, io_node)| {
+                .try_for_each(|(node, io_node)| {
                     let node_verts;
                     unsafe {
                         node_verts = node.1.get_verts_mut();
                     }
-                    io_node.verts.iter().for_each(|io_node_vert_index| {
-                        let vert_i = io_mesh.vert_pos_index_map.get(io_node_vert_index).unwrap();
+                    io_node.verts.iter().try_for_each(|io_node_vert_index| {
+                        let vert_i = io_mesh
+                            .vert_pos_index_map
+                            .get(io_node_vert_index)
+                            .ok_or(ConversionError::NoElementInPosIndexMap(*io_node_vert_index))?;
                         node_verts.push(mesh::VertIndex(verts.get_unknown_gen(*vert_i).unwrap().1));
-                    });
-                });
+                        Ok(())
+                    })?;
+                    Ok(())
+                })?;
 
             verts
                 .iter_mut()
                 .zip(io_mesh.verts.iter())
-                .for_each(|(vert, io_vert)| {
+                .try_for_each(|(vert, io_vert)| {
                     let vert_edges;
                     unsafe {
                         vert_edges = vert.1.get_edges_mut();
                     }
-                    io_vert.edges.iter().for_each(|io_vert_edge_index| {
-                        let edge_i = io_mesh.edge_pos_index_map.get(io_vert_edge_index).unwrap();
+                    io_vert.edges.iter().try_for_each(|io_vert_edge_index| {
+                        let edge_i = io_mesh
+                            .edge_pos_index_map
+                            .get(io_vert_edge_index)
+                            .ok_or(ConversionError::NoElementInPosIndexMap(*io_vert_edge_index))?;
                         vert_edges.push(mesh::EdgeIndex(edges.get_unknown_gen(*edge_i).unwrap().1));
-                    });
+                        Ok(())
+                    })?;
 
                     let vert_node;
                     unsafe {
@@ -349,15 +380,18 @@ pub(crate) mod io_structs {
                     }
 
                     *vert_node = io_vert.node.as_ref().map(|io_vert_node_index| {
+                        // TODO(ish): switch this to a error instead of just unwrapping
                         let node_i = io_mesh.node_pos_index_map.get(io_vert_node_index).unwrap();
                         mesh::NodeIndex(nodes.get_unknown_gen(*node_i).unwrap().1)
                     });
-                });
+
+                    Ok(())
+                })?;
 
             edges
                 .iter_mut()
                 .zip(io_mesh.edges.iter())
-                .for_each(|(edge, io_edge)| {
+                .try_for_each(|(edge, io_edge)| {
                     let edge_verts;
                     unsafe {
                         edge_verts = edge.1.get_verts_mut();
@@ -366,11 +400,13 @@ pub(crate) mod io_structs {
                         io_edge
                             .verts
                             .map(|(io_edge_vert_1_index, io_edge_vert_2_index)| {
+                                // TODO(ish): switch this to a error instead of just unwrapping
                                 let edge_vert_1_i = io_mesh
                                     .vert_pos_index_map
                                     .get(&io_edge_vert_1_index)
                                     .unwrap();
 
+                                // TODO(ish): switch this to a error instead of just unwrapping
                                 let edge_vert_2_i = io_mesh
                                     .vert_pos_index_map
                                     .get(&io_edge_vert_2_index)
@@ -390,25 +426,36 @@ pub(crate) mod io_structs {
                     unsafe {
                         edge_faces = edge.1.get_faces_mut();
                     }
-                    io_edge.faces.iter().for_each(|io_edge_face_index| {
-                        let face_i = io_mesh.face_pos_index_map.get(io_edge_face_index).unwrap();
-                        edge_faces.push(mesh::FaceIndex(faces.get_unknown_gen(*face_i).unwrap().1))
-                    });
-                });
+                    io_edge.faces.iter().try_for_each(|io_edge_face_index| {
+                        let face_i = io_mesh
+                            .face_pos_index_map
+                            .get(io_edge_face_index)
+                            .ok_or(ConversionError::NoElementInPosIndexMap(*io_edge_face_index))?;
+                        edge_faces.push(mesh::FaceIndex(faces.get_unknown_gen(*face_i).unwrap().1));
+                        Ok(())
+                    })?;
+
+                    Ok(())
+                })?;
 
             faces
                 .iter_mut()
                 .zip(io_mesh.faces.iter())
-                .for_each(|(face, io_face)| {
+                .try_for_each(|(face, io_face)| {
                     let face_verts;
                     unsafe {
                         face_verts = face.1.get_verts_mut();
                     }
-                    io_face.verts.iter().for_each(|io_face_vert_index| {
-                        let vert_i = io_mesh.vert_pos_index_map.get(io_face_vert_index).unwrap();
+                    io_face.verts.iter().try_for_each(|io_face_vert_index| {
+                        let vert_i = io_mesh
+                            .vert_pos_index_map
+                            .get(io_face_vert_index)
+                            .ok_or(ConversionError::NoElementInPosIndexMap(*io_face_vert_index))?;
                         face_verts.push(mesh::VertIndex(verts.get_unknown_gen(*vert_i).unwrap().1));
-                    });
-                });
+                        Ok(())
+                    })?;
+                    Ok(())
+                })?;
 
             let mut mesh = Self::from_arenas(nodes, verts, edges, faces);
             // since the mesh is from Blender, we need to convert the
@@ -419,7 +466,7 @@ pub(crate) mod io_structs {
                 util::Axis::NegZ,
                 util::Axis::Y,
             ));
-            mesh
+            Ok(mesh)
         }
     }
 }
@@ -832,9 +879,9 @@ impl<
         let meshio: io_structs::Mesh<END, EVD, EED, EFD> =
             serde_path_to_error::deserialize(&mut de)?;
 
-        let mesh: Self = meshio.into();
+        let mesh: Result<Self, ConversionError> = meshio.try_into();
 
-        Ok(mesh)
+        Ok(mesh?)
     }
 
     fn draw_uv(&self, draw_data: &mut MeshUVDrawData) {
@@ -1104,6 +1151,7 @@ pub enum MeshExtensionError {
     NoFileExtension,
     NoMesh,
     NoExtraData,
+    ConversionFailed(ConversionError),
 }
 
 impl std::error::Error for MeshExtensionError {}
@@ -1129,6 +1177,9 @@ impl Display for MeshExtensionError {
             MeshExtensionError::NoExtraData => {
                 write!(f, "No extra data for the element")
             }
+            MeshExtensionError::ConversionFailed(error) => {
+                write!(f, "Conversion failed: {}", error)
+            }
         }
     }
 }
@@ -1136,6 +1187,12 @@ impl Display for MeshExtensionError {
 impl From<serde_path_to_error::Error<rmps::decode::Error>> for MeshExtensionError {
     fn from(error: serde_path_to_error::Error<rmps::decode::Error>) -> Self {
         Self::DeserializationError(error.to_string())
+    }
+}
+
+impl From<ConversionError> for MeshExtensionError {
+    fn from(error: ConversionError) -> Self {
+        Self::ConversionFailed(error)
     }
 }
 
