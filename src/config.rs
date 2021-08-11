@@ -9,7 +9,7 @@ use quick_renderer::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    blender_mesh_io::{io_structs, EmptyAdaptiveMesh, MeshExtensionError},
+    blender_mesh_io::{EmptyAdaptiveMesh, MeshExtensionError, MeshToBlenderMeshIndexMap},
     draw_ui::DrawUI,
     math::{self, Transform},
     prelude::MeshExtension,
@@ -55,19 +55,19 @@ type ResultMesh = Result<MeshType, MeshExtensionError>;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LoadedMesh {
     mesh: ResultMesh,
-    io_mesh: Option<io_structs::EmptyAdaptiveMesh>,
+    mesh_pos_index_map: Option<MeshToBlenderMeshIndexMap>,
     location: String,
 }
 
 impl LoadedMesh {
     pub fn new(
         mesh: ResultMesh,
-        io_mesh: Option<io_structs::EmptyAdaptiveMesh>,
+        mesh_pos_index_map: Option<MeshToBlenderMeshIndexMap>,
         location: String,
     ) -> Self {
         Self {
             mesh,
-            io_mesh,
+            mesh_pos_index_map,
             location,
         }
     }
@@ -76,8 +76,8 @@ impl LoadedMesh {
         &self.mesh
     }
 
-    pub fn get_io_mesh(&self) -> &Option<io_structs::EmptyAdaptiveMesh> {
-        &self.io_mesh
+    pub fn get_mesh_pos_index_map(&self) -> &Option<MeshToBlenderMeshIndexMap> {
+        &self.mesh_pos_index_map
     }
 
     pub fn get_location(&self) -> &str {
@@ -235,10 +235,13 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
         ui.horizontal(|ui| {
             if ui.button("Load Mesh").clicked() {
                 let mesh_maybe = MeshType::read_file(&self.meshes_to_load);
-                let io_mesh = mesh_maybe.as_ref().map(|(_, io_mesh)| io_mesh.clone()).ok();
+                let mesh_pos_index_map = mesh_maybe
+                    .as_ref()
+                    .map(|(_, mesh_pos_index_map)| mesh_pos_index_map.clone())
+                    .ok();
                 self.meshes = vec![LoadedMesh::new(
                     mesh_maybe.map(|(mesh, _)| mesh),
-                    io_mesh,
+                    mesh_pos_index_map,
                     self.meshes_to_load.to_string(),
                 )];
             }
@@ -252,11 +255,13 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                         .map(|location| {
                             let location = location.unwrap().path();
                             let mesh_maybe = MeshType::read_file(&location);
-                            let io_mesh =
-                                mesh_maybe.as_ref().map(|(_, io_mesh)| io_mesh.clone()).ok();
+                            let mesh_pos_index_map = mesh_maybe
+                                .as_ref()
+                                .map(|(_, mesh_pos_index_map)| mesh_pos_index_map.clone())
+                                .ok();
                             LoadedMesh::new(
                                 mesh_maybe.map(|(mesh, _)| mesh),
-                                io_mesh,
+                                mesh_pos_index_map,
                                 location.to_str().unwrap().to_string(),
                             )
                         })

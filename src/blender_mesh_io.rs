@@ -6,6 +6,7 @@ use quick_renderer::shader::builtins::get_smooth_color_3d_shader;
 use rmps::Deserializer;
 use serde::{Deserialize, Serialize};
 
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fmt::Display;
 use std::path::Path;
@@ -228,23 +229,23 @@ pub(crate) mod io_structs {
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct Mesh<END, EVD, EED, EFD> {
-        nodes_str: String,
-        nodes: Vec<Node<END>>,
-        verts_str: String,
-        verts: Vec<Vert<EVD>>,
-        edges_str: String,
-        edges: Vec<Edge<EED>>,
-        faces_str: String,
-        faces: Vec<Face<EFD>>,
+        pub nodes_str: String,
+        pub nodes: Vec<Node<END>>,
+        pub verts_str: String,
+        pub verts: Vec<Vert<EVD>>,
+        pub edges_str: String,
+        pub edges: Vec<Edge<EED>>,
+        pub faces_str: String,
+        pub faces: Vec<Face<EFD>>,
 
-        nodes_map_str: String,
-        node_pos_index_map: HashMap<NodeIndex, usize>,
-        verts_map_str: String,
-        vert_pos_index_map: HashMap<VertIndex, usize>,
-        edges_map_str: String,
-        edge_pos_index_map: HashMap<EdgeIndex, usize>,
-        faces_map_str: String,
-        face_pos_index_map: HashMap<FaceIndex, usize>,
+        pub nodes_map_str: String,
+        pub node_pos_index_map: HashMap<NodeIndex, usize>,
+        pub verts_map_str: String,
+        pub vert_pos_index_map: HashMap<VertIndex, usize>,
+        pub edges_map_str: String,
+        pub edge_pos_index_map: HashMap<EdgeIndex, usize>,
+        pub faces_map_str: String,
+        pub face_pos_index_map: HashMap<FaceIndex, usize>,
     }
 
     impl From<Float3> for glm::DVec3 {
@@ -478,8 +479,8 @@ pub(crate) mod io_structs {
     // pub type AdaptiveVert = Vert<VertData>;
     // pub type AdaptiveEdge = Edge<EdgeData>;
     // pub type AdaptiveFace = Face<EmptyExtraData>;
-    pub type AdaptiveMesh<END> = Mesh<NodeData<END>, VertData, EdgeData, EmptyExtraData>;
-    pub type EmptyAdaptiveMesh = AdaptiveMesh<EmptyExtraData>;
+    // pub type AdaptiveMesh<END> = Mesh<NodeData<END>, VertData, EdgeData, EmptyExtraData>;
+    // pub type EmptyAdaptiveMesh = AdaptiveMesh<EmptyExtraData>;
 }
 
 pub type AdaptiveNode<END> = mesh::Node<io_structs::NodeData<END>>;
@@ -826,17 +827,71 @@ impl DrawUI for MeshElementReferences {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MeshToBlenderMeshIndexMap {
+    pub node_pos_index_map: HashMap<usize, io_structs::NodeIndex>,
+    pub vert_pos_index_map: HashMap<usize, io_structs::VertIndex>,
+    pub edge_pos_index_map: HashMap<usize, io_structs::EdgeIndex>,
+    pub face_pos_index_map: HashMap<usize, io_structs::FaceIndex>,
+}
+
+impl MeshToBlenderMeshIndexMap {
+    pub fn new(
+        node_pos_index_map: HashMap<usize, io_structs::NodeIndex>,
+        vert_pos_index_map: HashMap<usize, io_structs::VertIndex>,
+        edge_pos_index_map: HashMap<usize, io_structs::EdgeIndex>,
+        face_pos_index_map: HashMap<usize, io_structs::FaceIndex>,
+    ) -> Self {
+        Self {
+            node_pos_index_map,
+            vert_pos_index_map,
+            edge_pos_index_map,
+            face_pos_index_map,
+        }
+    }
+
+    pub fn from_blender_mesh<END, EVD, EED, EFD>(
+        io_mesh: &io_structs::Mesh<END, EVD, EED, EFD>,
+    ) -> Self {
+        let node_pos_index_map = io_mesh
+            .node_pos_index_map
+            .iter()
+            .map(|(index, pos)| (*pos, *index))
+            .collect();
+        let vert_pos_index_map = io_mesh
+            .vert_pos_index_map
+            .iter()
+            .map(|(index, pos)| (*pos, *index))
+            .collect();
+        let edge_pos_index_map = io_mesh
+            .edge_pos_index_map
+            .iter()
+            .map(|(index, pos)| (*pos, *index))
+            .collect();
+        let face_pos_index_map = io_mesh
+            .face_pos_index_map
+            .iter()
+            .map(|(index, pos)| (*pos, *index))
+            .collect();
+
+        Self::new(
+            node_pos_index_map,
+            vert_pos_index_map,
+            edge_pos_index_map,
+            face_pos_index_map,
+        )
+    }
+}
+
 pub trait MeshExtension<'de, END, EVD, EED, EFD> {
     type Error;
 
-    fn read_file<P: AsRef<Path>>(
-        path: P,
-    ) -> Result<(Self, io_structs::Mesh<END, EVD, EED, EFD>), Self::Error>
+    fn read_file<P: AsRef<Path>>(path: P) -> Result<(Self, MeshToBlenderMeshIndexMap), Self::Error>
     where
         Self: Sized;
     fn read_msgpack<P: AsRef<Path>>(
         path: P,
-    ) -> Result<(Self, io_structs::Mesh<END, EVD, EED, EFD>), Self::Error>
+    ) -> Result<(Self, MeshToBlenderMeshIndexMap), Self::Error>
     where
         Self: Sized;
 
@@ -878,7 +933,7 @@ impl<
 
     fn read_file<P: AsRef<Path>>(
         path: P,
-    ) -> Result<(Self, io_structs::Mesh<END, EVD, EED, EFD>), MeshExtensionError> {
+    ) -> Result<(Self, MeshToBlenderMeshIndexMap), Self::Error> {
         match path.as_ref().extension() {
             Some(extension) => match extension.to_str().unwrap() {
                 "mesh" => Self::read_msgpack(path),
@@ -890,7 +945,7 @@ impl<
 
     fn read_msgpack<P: AsRef<Path>>(
         path: P,
-    ) -> Result<(Self, io_structs::Mesh<END, EVD, EED, EFD>), MeshExtensionError> {
+    ) -> Result<(Self, MeshToBlenderMeshIndexMap), Self::Error> {
         let file = std::fs::read(path).unwrap();
 
         let mut de = Deserializer::new(std::io::Cursor::new(&file));
@@ -898,9 +953,13 @@ impl<
         let meshio: io_structs::Mesh<END, EVD, EED, EFD> =
             serde_path_to_error::deserialize(&mut de)?;
 
-        let mesh: Result<Self, ConversionError> = meshio.clone().try_into();
+        let mesh_to_blender_mesh_index_map = MeshToBlenderMeshIndexMap::from_blender_mesh(&meshio);
 
-        Ok((mesh?, meshio))
+        let mesh_res: Result<Self, ConversionError> = meshio.try_into();
+
+        let mesh = mesh_res?;
+
+        Ok((mesh, mesh_to_blender_mesh_index_map))
     }
 
     fn draw_uv(&self, draw_data: &mut MeshUVDrawData) {
