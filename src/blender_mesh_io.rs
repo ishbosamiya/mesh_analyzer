@@ -100,6 +100,38 @@ pub(crate) mod io_structs {
     }
 
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    pub struct ClothVertex {
+        flags: i32,
+        v: Float3,
+        xconst: Float3,
+        x: Float3,
+        xold: Float3,
+        tx: Float3,
+        txold: Float3,
+        tv: Float3,
+        mass: f32,
+        goal: f32,
+        impulse: Float3,
+        xrest: Float3,
+        dcvel: Float3,
+        impulse_count: u32,
+        avg_spring_len: f32,
+        struct_stiff: f32,
+        bend_stiff: f32,
+        shear_stiff: f32,
+        spring_count: i32,
+        shrink_factor: f32,
+        internal_stiff: f32,
+        pressure_factor: f32,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    pub struct ClothNodeData {
+        cloth_node_data_str: String,
+        cloth_node_data: ClothVertex,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub struct NodeData<T> {
         node_data_str: String,
         extra_data: T,
@@ -500,6 +532,7 @@ pub type AdaptiveMesh<END> = mesh::Mesh<
     io_structs::EmptyExtraData,
 >;
 pub type EmptyAdaptiveMesh = AdaptiveMesh<io_structs::EmptyExtraData>;
+pub type ClothAdaptiveMesh = AdaptiveMesh<io_structs::ClothNodeData>;
 
 pub trait AdaptiveMeshExtension<END> {
     fn is_edge_flippable_anisotropic_aware(

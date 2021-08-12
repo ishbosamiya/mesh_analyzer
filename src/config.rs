@@ -9,7 +9,9 @@ use quick_renderer::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    blender_mesh_io::{EmptyAdaptiveMesh, MeshExtensionError, MeshToBlenderMeshIndexMap},
+    blender_mesh_io::{
+        ClothAdaptiveMesh, EmptyAdaptiveMesh, MeshExtensionError, MeshToBlenderMeshIndexMap,
+    },
     draw_ui::DrawUI,
     math::{self, Transform},
     prelude::MeshExtension,
@@ -49,7 +51,8 @@ impl Display for Element {
     }
 }
 
-type MeshType = EmptyAdaptiveMesh;
+// type MeshType = EmptyAdaptiveMesh;
+type MeshType = ClothAdaptiveMesh;
 type ResultMesh = Result<MeshType, MeshExtensionError>;
 
 #[derive(Debug, Serialize, Deserialize)]
