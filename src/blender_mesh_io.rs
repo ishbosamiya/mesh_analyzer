@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fmt::Display;
+use std::io::BufRead;
 use std::path::Path;
 
 use quick_renderer::drawable::Drawable;
@@ -1038,7 +1039,12 @@ impl<
     ) -> Result<(Self, MeshToBlenderMeshIndexMap), Self::Error> {
         let file = std::fs::read(path).unwrap();
 
-        let mut de = Deserializer::new(std::io::Cursor::new(&file));
+        let mut cursor = std::io::Cursor::new(&file);
+
+        let mut mesh_type = String::new();
+        cursor.read_line(&mut mesh_type).unwrap();
+
+        let mut de = Deserializer::new(cursor);
 
         let meshio: io_structs::Mesh<END, EVD, EED, EFD> =
             serde_path_to_error::deserialize(&mut de)?;
@@ -1329,6 +1335,7 @@ pub enum MeshExtensionError {
     NoMesh,
     NoExtraData,
     ConversionFailed(ConversionError),
+    UnknownMeshType,
 }
 
 impl std::error::Error for MeshExtensionError {}
@@ -1356,6 +1363,9 @@ impl Display for MeshExtensionError {
             }
             MeshExtensionError::ConversionFailed(error) => {
                 write!(f, "Conversion failed: {}", error)
+            }
+            MeshExtensionError::UnknownMeshType => {
+                write!(f, "Unknown mesh type")
             }
         }
     }
