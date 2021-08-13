@@ -1010,6 +1010,9 @@ pub trait MeshExtension<'de, END, EVD, EED, EFD> {
         element: config::Element,
         element_index: usize,
     ) -> Result<MeshElementReferences, MeshExtensionError>;
+
+    /// Computes the aspect ratio based on various metrics and returns all of them
+    fn compute_aspect_ratio_uv(&self, face: &AdaptiveFace) -> (f64, f64, f64);
 }
 
 impl<
@@ -1323,6 +1326,44 @@ impl<
                 Ok(MeshElementReferences::from_face(face))
             }
         }
+    }
+
+    fn compute_aspect_ratio_uv(&self, face: &AdaptiveFace) -> (f64, f64, f64) {
+        let verts = &face.get_verts();
+
+        let vert_1_index = verts[0];
+        let vert_1 = self.get_vert(vert_1_index).unwrap();
+
+        let vert_2_index = verts[1];
+        let vert_2 = self.get_vert(vert_2_index).unwrap();
+
+        let vert_3_index = verts[2];
+        let vert_3 = self.get_vert(vert_3_index).unwrap();
+
+        let p1 = vert_1.uv.unwrap();
+        let p2 = vert_2.uv.unwrap();
+        let p3 = vert_3.uv.unwrap();
+
+        let l1 = (p2 - p1).norm();
+        let l2 = (p3 - p2).norm();
+        let l3 = (p1 - p3).norm();
+        let area = 0.5 * glm::cross2d(&(p2 - p1), &(p3 - p1));
+        let perimeter = l1 + l2 + l3;
+        let l_max = l1.max(l2).max(l3);
+
+        // the measure associated with
+        // interpolation error
+        let metric_1 = || (4.0 * 3.0_f64.sqrt() * area) / (l_max * perimeter);
+
+        // aspect ratio or ratio between
+        // minumum and maxium dimension of
+        // triangle
+        let metric_2 = || (4.0 * area) / (3.0_f64.sqrt() * l_max.powi(2));
+
+        // different metric
+        let metric_3 = || 12.0 * 3.0_f64.sqrt() * area / perimeter.powi(2);
+
+        (metric_1(), metric_2(), metric_3())
     }
 }
 

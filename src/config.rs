@@ -479,56 +479,12 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                 egui::ScrollArea::auto_sized().show(ui, |ui| {
                     if let Some(mesh) = mesh {
                         for (_, face) in mesh.get_faces() {
-                            let verts = &face.get_verts();
-                            let vert_1_index = verts[0];
-                            let vert_1 = mesh.get_vert(vert_1_index).unwrap();
-                            let node_1 = mesh.get_node(vert_1.get_node().unwrap()).unwrap();
-                            for (vert_2_index, vert_3_index) in
-                                itertools::Itertools::tuple_windows(verts.iter().skip(1))
-                            {
-                                let vert_2 = mesh.get_vert(*vert_2_index).unwrap();
-                                let vert_3 = mesh.get_vert(*vert_3_index).unwrap();
+                            let aspect_ratio = mesh.compute_aspect_ratio_uv(face);
 
-                                let node_2 = mesh.get_node(vert_2.get_node().unwrap()).unwrap();
-                                let node_3 = mesh.get_node(vert_3.get_node().unwrap()).unwrap();
-
-                                let calc_aspect_ratio = || {
-                                    let p1 = node_1.pos;
-                                    let p2 = node_2.pos;
-                                    let p3 = node_3.pos;
-
-                                    let l1 = (p2 - p1).norm();
-                                    let l2 = (p3 - p2).norm();
-                                    let l3 = (p1 - p3).norm();
-                                    let area = 0.5 * glm::cross(&(p2 - p1), &(p3 - p1)).norm();
-                                    let perimeter = l1 + l2 + l3;
-                                    let l_max = l1.max(l2).max(l3);
-
-                                    // the measure associated with
-                                    // interpolation error
-                                    let metric_1 =
-                                        || (4.0 * 3.0_f64.sqrt() * area) / (l_max * perimeter);
-
-                                    // aspect ratio or ratio between
-                                    // minumum and maxium dimension of
-                                    // triangle
-                                    let metric_2 =
-                                        || (4.0 * area) / (3.0_f64.sqrt() * l_max.powi(2));
-
-                                    // different metric
-                                    let metric_3 =
-                                        || 12.0 * 3.0_f64.sqrt() * area / perimeter.powi(2);
-
-                                    (metric_1(), metric_2(), metric_3())
-                                };
-
-                                let aspect_ratio = calc_aspect_ratio();
-
-                                ui.label(format!(
-                                    "{:.2}\t{:.2}\t{:.2}",
-                                    aspect_ratio.0, aspect_ratio.1, aspect_ratio.2
-                                ));
-                            }
+                            ui.label(format!(
+                                "{:.2}\t{:.2}\t{:.2}",
+                                aspect_ratio.0, aspect_ratio.1, aspect_ratio.2
+                            ));
                         }
                     }
                 });
