@@ -1290,7 +1290,13 @@ impl<
             self.get_faces().iter().for_each(|(_, face)| {
                 let aspect_ratio = self.compute_aspect_ratio_uv(face);
 
-                if aspect_ratio.0 < config.get_aspect_ratio_min() {
+                let aspect_ratio = match config.get_aspect_ratio_metric() {
+                    config::AspectRatioMetric::MeasureWithInterpolationError => aspect_ratio.0,
+                    config::AspectRatioMetric::RatioBetweenMinMaxDimension => aspect_ratio.1,
+                    config::AspectRatioMetric::DifferentMetric => aspect_ratio.2,
+                };
+
+                if aspect_ratio < config.get_aspect_ratio_min() {
                     self.draw_fancy_face(
                         face,
                         uv_plane_3d_model_matrix,

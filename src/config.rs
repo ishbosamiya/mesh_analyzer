@@ -49,10 +49,43 @@ impl Display for Element {
     }
 }
 
-// use crate::blender_mesh_io::EmptyAdaptiveMesh;
-// type MeshType = EmptyAdaptiveMesh;
-use crate::blender_mesh_io::ClothAdaptiveMesh;
-type MeshType = ClothAdaptiveMesh;
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum AspectRatioMetric {
+    MeasureWithInterpolationError,
+    RatioBetweenMinMaxDimension,
+    DifferentMetric,
+}
+
+impl AspectRatioMetric {
+    pub fn all() -> impl Iterator<Item = Self> {
+        [
+            Self::MeasureWithInterpolationError,
+            Self::RatioBetweenMinMaxDimension,
+            Self::DifferentMetric,
+        ]
+        .iter()
+        .copied()
+    }
+}
+
+impl Display for AspectRatioMetric {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MeasureWithInterpolationError => {
+                write!(f, "Measure associated with interpolation error")
+            }
+            AspectRatioMetric::RatioBetweenMinMaxDimension => {
+                write!(f, "Ratio between the min and max dimensions")
+            }
+            AspectRatioMetric::DifferentMetric => write!(f, "Different metric"),
+        }
+    }
+}
+
+use crate::blender_mesh_io::EmptyAdaptiveMesh;
+type MeshType = EmptyAdaptiveMesh;
+// use crate::blender_mesh_io::ClothAdaptiveMesh;
+// type MeshType = ClothAdaptiveMesh;
 type ResultMesh = Result<MeshType, MeshExtensionError>;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -147,6 +180,9 @@ pub struct Config<END, EVD, EED, EFD> {
     #[serde(default = "default_aspect_ratio_min")]
     aspect_ratio_min: f64,
 
+    #[serde(default = "default_aspect_ratio_metric")]
+    aspect_ratio_metric: AspectRatioMetric,
+
     mesh_node_extra_data_type: PhantomData<END>,
     mesh_vert_extra_data_type: PhantomData<EVD>,
     mesh_edge_extra_data_type: PhantomData<EED>,
@@ -205,6 +241,10 @@ fn default_aspect_ratio_min() -> f64 {
     0.1
 }
 
+fn default_aspect_ratio_metric() -> AspectRatioMetric {
+    AspectRatioMetric::MeasureWithInterpolationError
+}
+
 impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
     fn default() -> Self {
         Self {
@@ -249,6 +289,8 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             normal_pull_factor: 0.2,
             face_normal_size: default_face_normal_size(),
             aspect_ratio_min: default_aspect_ratio_min(),
+
+            aspect_ratio_metric: default_aspect_ratio_metric(),
 
             mesh_node_extra_data_type: PhantomData,
             mesh_vert_extra_data_type: PhantomData,
@@ -550,6 +592,18 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
         ui.add(
             egui::Slider::new(&mut self.aspect_ratio_min, 0.0..=1.0).text("Aspect Ratio Minimum"),
         );
+
+        egui::ComboBox::from_label("Aspect Ratio Metric")
+            .selected_text(format!("{}", self.aspect_ratio_metric))
+            .show_ui(ui, |ui| {
+                AspectRatioMetric::all().for_each(|metric| {
+                    ui.selectable_value(
+                        &mut self.aspect_ratio_metric,
+                        metric,
+                        format!("{}", metric),
+                    );
+                });
+            });
 
         ui.separator();
 
@@ -972,6 +1026,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
     pub fn get_aspect_ratio_min(&self) -> f64 {
         self.aspect_ratio_min
+    }
+
+    pub fn get_aspect_ratio_metric(&self) -> AspectRatioMetric {
+        self.aspect_ratio_metric
     }
 
     pub fn get_mesh_transform(&self) -> &Transform {
