@@ -122,8 +122,6 @@ fn main() {
 
     let infinite_grid = InfiniteGrid::default();
 
-    let mut metric_used = 0;
-
     while !window.should_close() {
         glfw.poll_events();
 
@@ -331,7 +329,11 @@ fn main() {
                         config.draw_ui_edit(&(), ui);
 
                         egui::Window::new("Aspect Ratios of Triangles").show(ui.ctx(), |ui| {
-                            ui.add(egui::Slider::new(&mut metric_used, 0..=2).clamp_to_range(true).text("Metric To Use"));
+                            ui.scope(|ui| {
+                                ui.label("Metric 1: The measure associated with interpolation error");
+                                ui.label("Metric 2: Aspect ratio or ratio between min and max dimensions of triangle");
+                                ui.label("Metric 3: Different metric");
+                            });
                             egui::ScrollArea::auto_sized().show(ui, |ui| {
                                 if let Ok(Ok(mesh)) = config.get_mesh() {
                                     for (_, face) in mesh.get_faces() {
@@ -353,7 +355,7 @@ fn main() {
                                             let node_3 =
                                                 mesh.get_node(vert_3.get_node().unwrap()).unwrap();
 
-                                            let calc_aspect_ratio = |calc: usize| {
+                                            let calc_aspect_ratio = || {
                                                 let p1 = node_1.pos;
                                                 let p2 = node_2.pos;
                                                 let p3 = node_3.pos;
@@ -380,21 +382,12 @@ fn main() {
                                                     12.0 * 3.0_f64.sqrt() * area / perimeter.powi(2)
                                                 };
 
-                                                if calc == 0 {
-                                                    measure_associated_with_interpolation_error()
-                                                }
-                                                else if calc == 1 {
-                                                    aspect_ratio_or_ratio_between_minumum_and_maxium_dimension_of_triangle()
-                                                }
-                                                else
-                                                {
-                                                    different_metric()
-                                                }
+                                                (measure_associated_with_interpolation_error(), aspect_ratio_or_ratio_between_minumum_and_maxium_dimension_of_triangle(), different_metric())
                                             };
 
-                                            let aspect_ratio = calc_aspect_ratio(metric_used);
+                                            let aspect_ratio = calc_aspect_ratio();
 
-                                            ui.label(format!("{}", aspect_ratio));
+                                            ui.label(format!("{:.2}\t{:.2}\t{:.2}", aspect_ratio.0, aspect_ratio.1, aspect_ratio.2));
                                         }
                                     }
                                 }
