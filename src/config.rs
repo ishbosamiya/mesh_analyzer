@@ -107,8 +107,10 @@ pub struct Config<END, EVD, EED, EFD> {
     draw_loose_edges: bool,
     #[serde(default = "default_draw_anisotropic_flippable_edges")]
     draw_anisotropic_flippable_edges: bool,
-    #[serde(default = "default_show_aspect_ratios_of_triangles")]
-    show_aspect_ratios_of_triangles: bool,
+    #[serde(default = "default_show_aspect_ratios_of_faces")]
+    show_aspect_ratios_of_faces: bool,
+    #[serde(default = "default_draw_faces_violating_aspect_ratio")]
+    draw_faces_violating_aspect_ratio: bool,
 
     #[serde(skip)]
     element: Element,
@@ -136,10 +138,14 @@ pub struct Config<END, EVD, EED, EFD> {
     face_back_color: glm::DVec4,
     #[serde(default = "default_face_normal_color")]
     face_normal_color: glm::DVec4,
+    #[serde(default = "default_face_violating_aspect_ratio_color")]
+    face_violating_aspect_ratio_color: glm::DVec4,
 
     #[serde(default = "default_face_normal_size")]
     face_normal_size: f64,
     normal_pull_factor: f64,
+    #[serde(default = "default_aspect_ratio_min")]
+    aspect_ratio_min: f64,
 
     mesh_node_extra_data_type: PhantomData<END>,
     mesh_vert_extra_data_type: PhantomData<EVD>,
@@ -167,6 +173,10 @@ fn default_face_normal_color() -> glm::DVec4 {
     glm::vec4(1.0, 0.22, 0.22, 1.0)
 }
 
+fn default_face_violating_aspect_ratio_color() -> glm::DVec4 {
+    glm::vec4(1.0, 0.22, 0.58, 1.0)
+}
+
 fn default_face_normal_size() -> f64 {
     1.0
 }
@@ -183,8 +193,16 @@ fn default_anisotropic_flippable_edge_color() -> glm::DVec4 {
     glm::vec4(0.5, 1.0, 0.4, 1.0)
 }
 
-fn default_show_aspect_ratios_of_triangles() -> bool {
+fn default_show_aspect_ratios_of_faces() -> bool {
     false
+}
+
+fn default_draw_faces_violating_aspect_ratio() -> bool {
+    false
+}
+
+fn default_aspect_ratio_min() -> f64 {
+    0.1
 }
 
 impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
@@ -201,7 +219,9 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             draw_wireframe: false,
             draw_loose_edges: false,
             draw_anisotropic_flippable_edges: default_draw_anisotropic_flippable_edges(),
-            show_aspect_ratios_of_triangles: default_show_aspect_ratios_of_triangles(),
+            show_aspect_ratios_of_faces: default_show_aspect_ratios_of_faces(),
+            draw_faces_violating_aspect_ratio: default_draw_faces_violating_aspect_ratio(),
+
             element: Element::Node,
             element_index: 0,
             blender_element_index: String::new(),
@@ -224,9 +244,11 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             face_front_color: default_face_front_color(),
             face_back_color: default_face_back_color(),
             face_normal_color: default_face_normal_color(),
+            face_violating_aspect_ratio_color: default_face_violating_aspect_ratio_color(),
 
             normal_pull_factor: 0.2,
             face_normal_size: default_face_normal_size(),
+            aspect_ratio_min: default_aspect_ratio_min(),
 
             mesh_node_extra_data_type: PhantomData,
             mesh_vert_extra_data_type: PhantomData,
@@ -362,8 +384,12 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             "Draw Anisotropic Flippable Edges",
         );
         ui.checkbox(
-            &mut self.show_aspect_ratios_of_triangles,
-            "Show Aspect Ratios of Triangles",
+            &mut self.show_aspect_ratios_of_faces,
+            "Show Aspect Ratios of Faces",
+        );
+        ui.checkbox(
+            &mut self.draw_faces_violating_aspect_ratio,
+            "Draw Faces Violating Aspect Ratio Minimum",
         );
 
         egui::ComboBox::from_label("Element Type")
@@ -467,7 +493,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
         });
 
         egui::Window::new("Aspect Ratios of Triangles")
-            .open(&mut self.show_aspect_ratios_of_triangles)
+            .open(&mut self.show_aspect_ratios_of_faces)
             .show(ui.ctx(), |ui| {
                 ui.scope(|ui| {
                     ui.label("Metric 1: The measure associated with interpolation error");
@@ -508,6 +534,11 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
         color_edit_button_dvec4(ui, "Face Front Color", &mut self.face_front_color);
         color_edit_button_dvec4(ui, "Face Back Color", &mut self.face_back_color);
         color_edit_button_dvec4(ui, "Face Normal Color", &mut self.face_normal_color);
+        color_edit_button_dvec4(
+            ui,
+            "Face Violating Aspect Ratio Color",
+            &mut self.face_violating_aspect_ratio_color,
+        );
 
         ui.add(
             egui::Slider::new(&mut self.normal_pull_factor, 0.0..=3.0)
@@ -515,6 +546,10 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
         );
 
         ui.add(egui::Slider::new(&mut self.face_normal_size, 0.0..=2.0).text("Face normal size"));
+
+        ui.add(
+            egui::Slider::new(&mut self.aspect_ratio_min, 0.0..=1.0).text("Aspect Ratio Minimum"),
+        );
 
         ui.separator();
 
@@ -863,6 +898,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
         self.draw_anisotropic_flippable_edges
     }
 
+    pub fn get_draw_triangles_violating_aspect_ratio(&self) -> bool {
+        self.draw_faces_violating_aspect_ratio
+    }
+
     pub fn get_element(&self) -> Element {
         self.element
     }
@@ -919,12 +958,20 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
         self.face_normal_color
     }
 
+    pub fn get_face_violating_aspect_ratio_color(&self) -> glm::DVec4 {
+        self.face_violating_aspect_ratio_color
+    }
+
     pub fn get_normal_pull_factor(&self) -> f64 {
         self.normal_pull_factor
     }
 
     pub fn get_face_normal_size(&self) -> f64 {
         self.face_normal_size
+    }
+
+    pub fn get_aspect_ratio_min(&self) -> f64 {
+        self.aspect_ratio_min
     }
 
     pub fn get_mesh_transform(&self) -> &Transform {

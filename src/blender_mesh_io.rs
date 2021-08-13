@@ -1012,7 +1012,7 @@ pub trait MeshExtension<'de, END, EVD, EED, EFD> {
     ) -> Result<MeshElementReferences, MeshExtensionError>;
 
     /// Computes the aspect ratio based on various metrics and returns all of them
-    fn compute_aspect_ratio_uv(&self, face: &AdaptiveFace) -> (f64, f64, f64);
+    fn compute_aspect_ratio_uv(&self, face: &mesh::Face<EFD>) -> (f64, f64, f64);
 }
 
 impl<
@@ -1283,6 +1283,26 @@ impl<
             imm.end();
         }
 
+        if config.get_draw_triangles_violating_aspect_ratio() {
+            let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
+            let mesh_3d_model_matrix = &config.get_mesh_transform().get_matrix();
+
+            self.get_faces().iter().for_each(|(_, face)| {
+                let aspect_ratio = self.compute_aspect_ratio_uv(face);
+
+                if aspect_ratio.0 < config.get_aspect_ratio_min() {
+                    self.draw_fancy_face(
+                        face,
+                        uv_plane_3d_model_matrix,
+                        mesh_3d_model_matrix,
+                        imm,
+                        glm::convert(config.get_face_violating_aspect_ratio_color()),
+                        config.get_normal_pull_factor(),
+                    );
+                }
+            });
+        }
+
         match config.get_element() {
             crate::config::Element::Node => {
                 // TODO(ish): handle showing which verts couldn't be
@@ -1328,7 +1348,7 @@ impl<
         }
     }
 
-    fn compute_aspect_ratio_uv(&self, face: &AdaptiveFace) -> (f64, f64, f64) {
+    fn compute_aspect_ratio_uv(&self, face: &mesh::Face<EFD>) -> (f64, f64, f64) {
         let verts = &face.get_verts();
 
         let vert_1_index = verts[0];
