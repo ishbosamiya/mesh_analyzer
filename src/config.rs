@@ -107,6 +107,8 @@ pub struct Config<END, EVD, EED, EFD> {
     draw_loose_edges: bool,
     #[serde(default = "default_draw_anisotropic_flippable_edges")]
     draw_anisotropic_flippable_edges: bool,
+    #[serde(default = "default_show_aspect_ratios_of_triangles")]
+    show_aspect_ratios_of_triangles: bool,
 
     #[serde(skip)]
     element: Element,
@@ -181,6 +183,10 @@ fn default_anisotropic_flippable_edge_color() -> glm::DVec4 {
     glm::vec4(0.5, 1.0, 0.4, 1.0)
 }
 
+fn default_show_aspect_ratios_of_triangles() -> bool {
+    false
+}
+
 impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
     fn default() -> Self {
         Self {
@@ -195,7 +201,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             draw_wireframe: false,
             draw_loose_edges: false,
             draw_anisotropic_flippable_edges: default_draw_anisotropic_flippable_edges(),
-
+            show_aspect_ratios_of_triangles: default_show_aspect_ratios_of_triangles(),
             element: Element::Node,
             element_index: 0,
             blender_element_index: String::new(),
@@ -355,6 +361,10 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             &mut self.draw_anisotropic_flippable_edges,
             "Draw Anisotropic Flippable Edges",
         );
+        ui.checkbox(
+            &mut self.show_aspect_ratios_of_triangles,
+            "Show Aspect Ratios of Triangles",
+        );
 
         egui::ComboBox::from_label("Element Type")
             .selected_text(format!("{}", self.element))
@@ -423,6 +433,8 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             }
         });
 
+        ui.separator();
+
         let mesh = match self.meshes.get(self.mesh_index) {
             Some(loaded_mesh) => loaded_mesh.get_mesh().as_ref().ok(),
             None => None,
@@ -454,7 +466,73 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             }
         });
 
-        ui.separator();
+        egui::Window::new("Aspect Ratios of Triangles")
+            .open(&mut self.show_aspect_ratios_of_triangles)
+            .show(ui.ctx(), |ui| {
+                ui.scope(|ui| {
+                    ui.label("Metric 1: The measure associated with interpolation error");
+                    ui.label(
+                    "Metric 2: Aspect ratio or ratio between min and max dimensions of triangle",
+                );
+                    ui.label("Metric 3: Different metric");
+                });
+                egui::ScrollArea::auto_sized().show(ui, |ui| {
+                    if let Some(mesh) = mesh {
+                        for (_, face) in mesh.get_faces() {
+                            let verts = &face.get_verts();
+                            let vert_1_index = verts[0];
+                            let vert_1 = mesh.get_vert(vert_1_index).unwrap();
+                            let node_1 = mesh.get_node(vert_1.get_node().unwrap()).unwrap();
+                            for (vert_2_index, vert_3_index) in
+                                itertools::Itertools::tuple_windows(verts.iter().skip(1))
+                            {
+                                let vert_2 = mesh.get_vert(*vert_2_index).unwrap();
+                                let vert_3 = mesh.get_vert(*vert_3_index).unwrap();
+
+                                let node_2 = mesh.get_node(vert_2.get_node().unwrap()).unwrap();
+                                let node_3 = mesh.get_node(vert_3.get_node().unwrap()).unwrap();
+
+                                let calc_aspect_ratio = || {
+                                    let p1 = node_1.pos;
+                                    let p2 = node_2.pos;
+                                    let p3 = node_3.pos;
+
+                                    let l1 = (p2 - p1).norm();
+                                    let l2 = (p3 - p2).norm();
+                                    let l3 = (p1 - p3).norm();
+                                    let area = 0.5 * glm::cross(&(p2 - p1), &(p3 - p1)).norm();
+                                    let perimeter = l1 + l2 + l3;
+                                    let l_max = l1.max(l2).max(l3);
+
+                                    // the measure associated with
+                                    // interpolation error
+                                    let metric_1 =
+                                        || (4.0 * 3.0_f64.sqrt() * area) / (l_max * perimeter);
+
+                                    // aspect ratio or ratio between
+                                    // minumum and maxium dimension of
+                                    // triangle
+                                    let metric_2 =
+                                        || (4.0 * area) / (3.0_f64.sqrt() * l_max.powi(2));
+
+                                    // different metric
+                                    let metric_3 =
+                                        || 12.0 * 3.0_f64.sqrt() * area / perimeter.powi(2);
+
+                                    (metric_1(), metric_2(), metric_3())
+                                };
+
+                                let aspect_ratio = calc_aspect_ratio();
+
+                                ui.label(format!(
+                                    "{:.2}\t{:.2}\t{:.2}",
+                                    aspect_ratio.0, aspect_ratio.1, aspect_ratio.2
+                                ));
+                            }
+                        }
+                    }
+                });
+            });
 
         color_edit_button_dvec4(ui, "Fancy Node Color", &mut self.node_color);
         color_edit_button_dvec4(ui, "Fancy Vert Color", &mut self.vert_color);
