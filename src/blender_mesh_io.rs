@@ -1373,7 +1373,7 @@ impl<
         let l1 = (p2 - p1).norm();
         let l2 = (p3 - p2).norm();
         let l3 = (p1 - p3).norm();
-        let area = 0.5 * glm::cross2d(&(p2 - p1), &(p3 - p1));
+        let area = 0.5 * glm::cross2d(&(p2 - p1), &(p3 - p1)).abs();
         let perimeter = l1 + l2 + l3;
         let l_max = l1.max(l2).max(l3);
 
