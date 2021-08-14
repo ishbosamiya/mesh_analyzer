@@ -183,6 +183,9 @@ pub struct Config<END, EVD, EED, EFD> {
     #[serde(default = "default_aspect_ratio_metric")]
     aspect_ratio_metric: AspectRatioMetric,
 
+    #[serde(default = "default_fps_limit")]
+    fps_limit: f64,
+
     mesh_node_extra_data_type: PhantomData<END>,
     mesh_vert_extra_data_type: PhantomData<EVD>,
     mesh_edge_extra_data_type: PhantomData<EED>,
@@ -245,6 +248,10 @@ fn default_aspect_ratio_metric() -> AspectRatioMetric {
     AspectRatioMetric::MeasureWithInterpolationError
 }
 
+fn default_fps_limit() -> f64 {
+    60.0
+}
+
 impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
     fn default() -> Self {
         Self {
@@ -292,6 +299,8 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
 
             aspect_ratio_metric: default_aspect_ratio_metric(),
 
+            fps_limit: default_fps_limit(),
+
             mesh_node_extra_data_type: PhantomData,
             mesh_vert_extra_data_type: PhantomData,
             mesh_edge_extra_data_type: PhantomData,
@@ -306,6 +315,12 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
     fn draw_ui(&self, _extra_data: &Self::ExtraData, _ui: &mut egui::Ui) {}
 
     fn draw_ui_edit(&mut self, _extra_data: &Self::ExtraData, ui: &mut egui::Ui) {
+        ui.add(
+            egui::Slider::new(&mut self.fps_limit, 60.0..=1000.0)
+                .clamp_to_range(true)
+                .text("FPS Limit"),
+        );
+
         ui.text_edit_singleline(&mut self.meshes_to_load);
 
         ui.horizontal(|ui| {
@@ -1030,6 +1045,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
     pub fn get_aspect_ratio_metric(&self) -> AspectRatioMetric {
         self.aspect_ratio_metric
+    }
+
+    pub fn get_fps_limit(&self) -> f64 {
+        self.fps_limit
     }
 
     pub fn get_mesh_transform(&self) -> &Transform {

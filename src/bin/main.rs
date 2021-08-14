@@ -298,7 +298,7 @@ fn main() {
                 .resizable(true)
                 .show(egui.get_egui_ctx(), |ui| {
                     egui::ScrollArea::auto_sized().show(ui, |ui| {
-                        ui.label(format!("fps: {:.2}", fps.update_and_get()));
+                        ui.label(format!("fps: {:.2}", fps.get_last_processed()));
                         if ui.button("Save Config").clicked() {
                             let config_serialized = serde_json::to_string_pretty(&config).unwrap();
                             std::fs::write(config_file_path, config_serialized).unwrap();
@@ -333,6 +333,9 @@ fn main() {
             let _output = egui.end_frame(glm::vec2(width as _, height as _));
         }
         // GUI ends
+
+        // fps update
+        fps.update_and_get(Some(config.get_fps_limit()));
 
         // Swap front and back buffers
         window.swap_buffers();
