@@ -1193,7 +1193,7 @@ impl<
                         &uv_plane_3d_model_matrix,
                         imm,
                         glm::convert(config.get_loose_edge_color()),
-                        config.get_normal_pull_factor(),
+                        config.get_normal_pull_factor() * 0.8,
                     );
 
                     self.draw_fancy_node_edge(
@@ -1201,7 +1201,7 @@ impl<
                         &mesh_3d_model_matrix,
                         imm,
                         glm::convert(config.get_loose_edge_color()),
-                        config.get_normal_pull_factor(),
+                        config.get_normal_pull_factor() * 0.8,
                     );
                 });
         }
