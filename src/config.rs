@@ -142,6 +142,8 @@ pub struct Config<END, EVD, EED, EFD> {
     #[serde(default = "default_draw_loose_verts")]
     draw_loose_verts: bool,
     draw_loose_edges: bool,
+    #[serde(default = "default_show_loose_faces")]
+    show_loose_faces: bool,
     #[serde(default = "default_draw_anisotropic_flippable_edges")]
     draw_anisotropic_flippable_edges: bool,
     #[serde(default = "default_show_aspect_ratios_of_faces")]
@@ -213,6 +215,10 @@ fn default_draw_loose_nodes() -> bool {
 }
 
 fn default_draw_loose_verts() -> bool {
+    false
+}
+
+fn default_show_loose_faces() -> bool {
     false
 }
 
@@ -291,6 +297,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             draw_loose_nodes: default_draw_loose_nodes(),
             draw_loose_verts: default_draw_loose_verts(),
             draw_loose_edges: false,
+            show_loose_faces: default_show_loose_faces(),
             draw_anisotropic_flippable_edges: default_draw_anisotropic_flippable_edges(),
             show_aspect_ratios_of_faces: default_show_aspect_ratios_of_faces(),
             draw_faces_violating_aspect_ratio: default_draw_faces_violating_aspect_ratio(),
@@ -466,6 +473,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
         ui.checkbox(&mut self.draw_loose_nodes, "Draw Loose Nodes");
         ui.checkbox(&mut self.draw_loose_verts, "Draw Loose Verts");
         ui.checkbox(&mut self.draw_loose_edges, "Draw Loose Edges");
+        ui.checkbox(&mut self.show_loose_faces, "Show Loose Faces");
         ui.checkbox(
             &mut self.draw_anisotropic_flippable_edges,
             "Draw Anisotropic Flippable Edges",
@@ -595,6 +603,17 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                             .iter()
                             .filter(|(_, edge)| edge.is_loose())
                             .map(|(_, edge)| { edge.get_self_index().0.into_raw_parts().0 })
+                            .collect_vec()
+                    ));
+                }
+
+                if self.show_loose_faces {
+                    ui.label(format!(
+                        "Loose Faces: {:?}",
+                        mesh.get_faces()
+                            .iter()
+                            .filter(|(_, face)| face.get_verts().is_empty())
+                            .map(|(_, face)| { face.get_self_index().0.into_raw_parts().0 })
                             .collect_vec()
                     ));
                 }
