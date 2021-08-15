@@ -137,6 +137,8 @@ pub struct Config<END, EVD, EED, EFD> {
     #[serde(default = "default_draw_face_normals")]
     draw_face_normals: bool,
     draw_wireframe: bool,
+    #[serde(default = "default_draw_loose_nodes")]
+    draw_loose_nodes: bool,
     #[serde(default = "default_draw_loose_verts")]
     draw_loose_verts: bool,
     draw_loose_edges: bool,
@@ -163,6 +165,8 @@ pub struct Config<END, EVD, EED, EFD> {
     vert_color: glm::DVec4,
     node_vert_connect_color: glm::DVec4,
     edge_color: glm::DVec4,
+    #[serde(default = "default_loose_node_color")]
+    loose_node_color: glm::DVec4,
     #[serde(default = "default_loose_vert_color")]
     loose_vert_color: glm::DVec4,
     loose_edge_color: glm::DVec4,
@@ -204,8 +208,16 @@ fn default_draw_face_normals() -> bool {
     false
 }
 
+fn default_draw_loose_nodes() -> bool {
+    false
+}
+
 fn default_draw_loose_verts() -> bool {
     false
+}
+
+fn default_loose_node_color() -> glm::DVec4 {
+    glm::vec4(1.0, 0.2, 0.6, 1.0)
 }
 
 fn default_loose_vert_color() -> glm::DVec4 {
@@ -276,6 +288,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             draw_infinite_grid: default_draw_infinite_grid(),
             draw_face_normals: default_draw_face_normals(),
             draw_wireframe: false,
+            draw_loose_nodes: default_draw_loose_nodes(),
             draw_loose_verts: default_draw_loose_verts(),
             draw_loose_edges: false,
             draw_anisotropic_flippable_edges: default_draw_anisotropic_flippable_edges(),
@@ -295,6 +308,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             vert_color: glm::vec4(0.48, 0.13, 1.0, 1.0),
             node_vert_connect_color: glm::vec4(0.17, 1.0, 0.4, 1.0),
             edge_color: glm::vec4(0.01, 0.52, 1.0, 1.0),
+            loose_node_color: default_loose_node_color(),
             loose_vert_color: default_loose_vert_color(),
             loose_edge_color: glm::vec4(1.0, 0.2, 0.6, 1.0),
             anisotropic_flippable_edge_color: default_anisotropic_flippable_edge_color(),
@@ -449,6 +463,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
         ui.checkbox(&mut self.draw_infinite_grid, "Draw Floor Grid");
         ui.checkbox(&mut self.draw_face_normals, "Draw Face Normals");
         ui.checkbox(&mut self.draw_wireframe, "Draw Wireframe");
+        ui.checkbox(&mut self.draw_loose_nodes, "Draw Loose Nodes");
         ui.checkbox(&mut self.draw_loose_verts, "Draw Loose Verts");
         ui.checkbox(&mut self.draw_loose_edges, "Draw Loose Edges");
         ui.checkbox(
@@ -551,6 +566,17 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                     }
                 }
 
+                if self.draw_loose_nodes {
+                    ui.label(format!(
+                        "Loose Nodes: {:?}",
+                        mesh.get_nodes()
+                            .iter()
+                            .filter(|(_, node)| node.is_loose())
+                            .map(|(_, node)| { node.get_self_index().0.into_raw_parts().0 })
+                            .collect_vec()
+                    ));
+                }
+
                 if self.draw_loose_verts {
                     ui.label(format!(
                         "Loose Verts: {:?}",
@@ -607,6 +633,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             &mut self.node_vert_connect_color,
         );
         color_edit_button_dvec4(ui, "Fancy Edge Color", &mut self.edge_color);
+        color_edit_button_dvec4(ui, "Loose Fancy Node Color", &mut self.loose_node_color);
         color_edit_button_dvec4(ui, "Loose Fancy Vert Color", &mut self.loose_vert_color);
         color_edit_button_dvec4(ui, "Loose Fancy Edge Color", &mut self.loose_edge_color);
         color_edit_button_dvec4(
@@ -986,6 +1013,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
         self.draw_wireframe
     }
 
+    pub fn get_draw_loose_nodes(&self) -> bool {
+        self.draw_loose_nodes
+    }
+
     pub fn get_draw_loose_verts(&self) -> bool {
         self.draw_loose_verts
     }
@@ -1032,6 +1063,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
     pub fn get_edge_color(&self) -> glm::DVec4 {
         self.edge_color
+    }
+
+    pub fn get_loose_node_color(&self) -> glm::DVec4 {
+        self.loose_node_color
     }
 
     pub fn get_loose_vert_color(&self) -> glm::DVec4 {
