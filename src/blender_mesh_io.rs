@@ -1206,6 +1206,21 @@ impl<
                 });
         }
 
+        if config.get_draw_loose_verts() {
+            let uv_plane_3d_model_matrix = config.get_uv_plane_3d_transform().get_matrix();
+            self.get_verts()
+                .iter()
+                .filter(|(_, vert)| vert.is_loose())
+                .for_each(|(_, vert)| {
+                    self.draw_fancy_vert(
+                        vert,
+                        &uv_plane_3d_model_matrix,
+                        glm::convert(config.get_loose_vert_color()),
+                        imm,
+                    );
+                });
+        }
+
         if config.get_draw_face_normals() && !self.get_faces().is_empty() {
             let mesh_3d_model_matrix = config.get_mesh_transform().get_matrix();
 
