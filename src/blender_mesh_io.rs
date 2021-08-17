@@ -17,6 +17,7 @@ use quick_renderer::drawable::Drawable;
 use quick_renderer::gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode};
 use quick_renderer::{glm, mesh, shader};
 
+use crate::blender_mesh_io::io_structs::ClothVertexFlag;
 use crate::config::ClothVertexElements;
 use crate::curve::{PointNormalTriangle, PointNormalTriangleDrawData};
 use crate::prelude::DrawUI;
@@ -105,6 +106,36 @@ pub(crate) mod io_structs {
     impl Index {
         pub fn get_index(&self) -> usize {
             self.index
+        }
+    }
+
+    pub enum ClothVertexFlag {
+        Pinned = 1,
+        NoSelfColl = 2,
+        NoObjColl = 4,
+    }
+
+    impl ClothVertexFlag {
+        pub fn is_pinned(flag: i32) -> bool {
+            flag & 1 == 1
+        }
+
+        pub fn is_no_self_coll(flag: i32) -> bool {
+            flag & 2 == 1
+        }
+
+        pub fn is_no_obj_coll(flag: i32) -> bool {
+            flag & 4 == 1
+        }
+    }
+
+    impl Display for ClothVertexFlag {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                ClothVertexFlag::Pinned => write!(f, "Pinned"),
+                ClothVertexFlag::NoSelfColl => write!(f, "No Self Collision"),
+                ClothVertexFlag::NoObjColl => write!(f, "No Obj Collision"),
+            }
         }
     }
 
@@ -1004,70 +1035,93 @@ impl DrawUI for ClothAdaptiveMesh {
                                 if let Some(cloth_vertex) = cloth_vertex {
                                     match config.get_cloth_vertex_elements() {
                                         ClothVertexElements::Flags => {
-                                            ui.label(format!("{}", cloth_vertex.flags))
+                                            ui.horizontal(|ui| {
+                                                if ClothVertexFlag::is_pinned(cloth_vertex.flags) {
+                                                    ui.label(format!(
+                                                        "{}",
+                                                        ClothVertexFlag::Pinned
+                                                    ));
+                                                }
+                                                if ClothVertexFlag::is_no_self_coll(
+                                                    cloth_vertex.flags,
+                                                ) {
+                                                    ui.label(format!(
+                                                        "{}",
+                                                        ClothVertexFlag::NoSelfColl
+                                                    ));
+                                                }
+                                                if ClothVertexFlag::is_no_obj_coll(
+                                                    cloth_vertex.flags,
+                                                ) {
+                                                    ui.label(format!(
+                                                        "{}",
+                                                        ClothVertexFlag::NoObjColl
+                                                    ));
+                                                }
+                                            });
                                         }
                                         ClothVertexElements::V => {
-                                            ui.label(format!("{}", cloth_vertex.v))
+                                            ui.label(format!("{}", cloth_vertex.v));
                                         }
                                         ClothVertexElements::Xconst => {
-                                            ui.label(format!("{}", cloth_vertex.xconst))
+                                            ui.label(format!("{}", cloth_vertex.xconst));
                                         }
                                         ClothVertexElements::X => {
-                                            ui.label(format!("{}", cloth_vertex.x))
+                                            ui.label(format!("{}", cloth_vertex.x));
                                         }
                                         ClothVertexElements::Xold => {
-                                            ui.label(format!("{}", cloth_vertex.xold))
+                                            ui.label(format!("{}", cloth_vertex.xold));
                                         }
                                         ClothVertexElements::Tx => {
-                                            ui.label(format!("{}", cloth_vertex.tx))
+                                            ui.label(format!("{}", cloth_vertex.tx));
                                         }
                                         ClothVertexElements::Txold => {
-                                            ui.label(format!("{}", cloth_vertex.txold))
+                                            ui.label(format!("{}", cloth_vertex.txold));
                                         }
                                         ClothVertexElements::Tv => {
-                                            ui.label(format!("{}", cloth_vertex.tv))
+                                            ui.label(format!("{}", cloth_vertex.tv));
                                         }
                                         ClothVertexElements::Mass => {
-                                            ui.label(format!("{}", cloth_vertex.mass))
+                                            ui.label(format!("{}", cloth_vertex.mass));
                                         }
                                         ClothVertexElements::Goal => {
-                                            ui.label(format!("{}", cloth_vertex.goal))
+                                            ui.label(format!("{}", cloth_vertex.goal));
                                         }
                                         ClothVertexElements::Impulse => {
-                                            ui.label(format!("{}", cloth_vertex.impulse))
+                                            ui.label(format!("{}", cloth_vertex.impulse));
                                         }
                                         ClothVertexElements::Xrest => {
-                                            ui.label(format!("{}", cloth_vertex.xrest))
+                                            ui.label(format!("{}", cloth_vertex.xrest));
                                         }
                                         ClothVertexElements::Dcvel => {
-                                            ui.label(format!("{}", cloth_vertex.dcvel))
+                                            ui.label(format!("{}", cloth_vertex.dcvel));
                                         }
                                         ClothVertexElements::ImpulseCount => {
-                                            ui.label(format!("{}", cloth_vertex.impulse_count))
+                                            ui.label(format!("{}", cloth_vertex.impulse_count));
                                         }
                                         ClothVertexElements::AvgSpringLen => {
-                                            ui.label(format!("{}", cloth_vertex.avg_spring_len))
+                                            ui.label(format!("{}", cloth_vertex.avg_spring_len));
                                         }
                                         ClothVertexElements::StructStiff => {
-                                            ui.label(format!("{}", cloth_vertex.struct_stiff))
+                                            ui.label(format!("{}", cloth_vertex.struct_stiff));
                                         }
                                         ClothVertexElements::BendStiff => {
-                                            ui.label(format!("{}", cloth_vertex.bend_stiff))
+                                            ui.label(format!("{}", cloth_vertex.bend_stiff));
                                         }
                                         ClothVertexElements::ShearStiff => {
-                                            ui.label(format!("{}", cloth_vertex.shear_stiff))
+                                            ui.label(format!("{}", cloth_vertex.shear_stiff));
                                         }
                                         ClothVertexElements::SpringCount => {
-                                            ui.label(format!("{}", cloth_vertex.spring_count))
+                                            ui.label(format!("{}", cloth_vertex.spring_count));
                                         }
                                         ClothVertexElements::ShrinkFactor => {
-                                            ui.label(format!("{}", cloth_vertex.shrink_factor))
+                                            ui.label(format!("{}", cloth_vertex.shrink_factor));
                                         }
                                         ClothVertexElements::InternalStiff => {
-                                            ui.label(format!("{}", cloth_vertex.internal_stiff))
+                                            ui.label(format!("{}", cloth_vertex.internal_stiff));
                                         }
                                         ClothVertexElements::PressureFactor => {
-                                            ui.label(format!("{}", cloth_vertex.pressure_factor))
+                                            ui.label(format!("{}", cloth_vertex.pressure_factor));
                                         }
                                     };
                                 }
