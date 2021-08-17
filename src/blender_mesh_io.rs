@@ -756,12 +756,23 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
             );
             let mesh_3d_model_matrix = &config.get_mesh_transform().get_matrix();
 
+            enum DrawStyle {
+                None,
+                Point,
+                Line,
+            }
+
+            let mut draw_style = DrawStyle::None;
+            let mut points: Vec<glm::DVec3> = Vec::new();
+
             match config.get_cloth_vertex_elements() {
                 config::ClothVertexElements::Flags => todo!(),
                 config::ClothVertexElements::V => todo!(),
                 config::ClothVertexElements::Xconst => todo!(),
-                config::ClothVertexElements::X => {
-                    self.get_nodes().iter().try_for_each(|(_, node)| {
+                config::ClothVertexElements::X => self
+                    .get_nodes()
+                    .iter()
+                    .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
                         let x = node
                             .extra_data
                             .as_ref()
@@ -770,12 +781,10 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
                             .get_cloth_node_data()
                             .x
                             .into();
-                        let x = apply_model_matrix_vec3(&x, axis_conversion_matrix);
-                        let x = apply_model_matrix_vec3(&x, mesh_3d_model_matrix);
-                        draw_sphere_at(&x, color, imm);
+                        points.push(x);
+                        draw_style = DrawStyle::Point;
                         Ok(())
-                    })
-                }
+                    })?,
                 config::ClothVertexElements::Xold => todo!(),
                 config::ClothVertexElements::Tx => todo!(),
                 config::ClothVertexElements::Txold => todo!(),
@@ -795,6 +804,20 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
                 config::ClothVertexElements::InternalStiff => todo!(),
                 config::ClothVertexElements::PressureFactor => todo!(),
             }
+
+            match draw_style {
+                DrawStyle::Point => {
+                    points.iter().for_each(|pos| {
+                        let pos = apply_model_matrix_vec3(pos, axis_conversion_matrix);
+                        let pos = apply_model_matrix_vec3(&pos, mesh_3d_model_matrix);
+                        draw_sphere_at(&pos, color, imm);
+                    });
+                }
+                DrawStyle::Line => todo!(),
+                DrawStyle::None => unreachable!(),
+            }
+
+            Ok(())
         } else {
             Ok(())
         }
