@@ -50,6 +50,92 @@ impl Display for Element {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ClothVertexElements {
+    Flags,
+    V,
+    Xconst,
+    X,
+    Xold,
+    Tx,
+    Txold,
+    Tv,
+    Mass,
+    Goal,
+    Impulse,
+    Xrest,
+    Dcvel,
+    ImpulseCount,
+    AvgSpringLen,
+    StructStiff,
+    BendStiff,
+    ShearStiff,
+    SpringCount,
+    ShrinkFactor,
+    InternalStiff,
+    PressureFactor,
+}
+
+impl ClothVertexElements {
+    pub fn all() -> impl Iterator<Item = Self> {
+        [
+            Self::Flags,
+            Self::V,
+            Self::Xconst,
+            Self::X,
+            Self::Xold,
+            Self::Tx,
+            Self::Txold,
+            Self::Tv,
+            Self::Mass,
+            Self::Goal,
+            Self::Impulse,
+            Self::Xrest,
+            Self::Dcvel,
+            Self::ImpulseCount,
+            Self::AvgSpringLen,
+            Self::StructStiff,
+            Self::BendStiff,
+            Self::ShearStiff,
+            Self::SpringCount,
+            Self::ShrinkFactor,
+            Self::InternalStiff,
+            Self::PressureFactor,
+        ]
+        .iter()
+        .copied()
+    }
+}
+
+impl Display for ClothVertexElements {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Flags => write!(f, "Flags"),
+            Self::V => write!(f, "V"),
+            Self::Xconst => write!(f, "Xconst"),
+            Self::X => write!(f, "X"),
+            Self::Xold => write!(f, "Xold"),
+            Self::Tx => write!(f, "Tx"),
+            Self::Txold => write!(f, "Txold"),
+            Self::Tv => write!(f, "Tv"),
+            Self::Mass => write!(f, "Mass"),
+            Self::Goal => write!(f, "Goal"),
+            Self::Impulse => write!(f, "Impulse"),
+            Self::Xrest => write!(f, "Xrest"),
+            Self::Dcvel => write!(f, "Dcvel"),
+            Self::ImpulseCount => write!(f, "Impulse Count"),
+            Self::AvgSpringLen => write!(f, "Avg Spring Len"),
+            Self::StructStiff => write!(f, "Struct Stiff"),
+            Self::BendStiff => write!(f, "Bend Stiff"),
+            Self::ShearStiff => write!(f, "Shear Stiff"),
+            Self::SpringCount => write!(f, "Spring Count"),
+            Self::ShrinkFactor => write!(f, "Shrink Factor"),
+            Self::InternalStiff => write!(f, "Internal Stiff"),
+            Self::PressureFactor => write!(f, "Pressure Factor"),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AspectRatioMetric {
     MeasureWithInterpolationError,
     RatioBetweenMinMaxDimension,
@@ -82,10 +168,16 @@ impl Display for AspectRatioMetric {
     }
 }
 
+#[cfg(not(feature = "use_cloth_adaptive_mesh"))]
 use crate::blender_mesh_io::EmptyAdaptiveMesh;
+#[cfg(not(feature = "use_cloth_adaptive_mesh"))]
 type MeshType = EmptyAdaptiveMesh;
-// use crate::blender_mesh_io::ClothAdaptiveMesh;
-// type MeshType = ClothAdaptiveMesh;
+
+#[cfg(feature = "use_cloth_adaptive_mesh")]
+use crate::blender_mesh_io::ClothAdaptiveMesh;
+#[cfg(feature = "use_cloth_adaptive_mesh")]
+type MeshType = ClothAdaptiveMesh;
+
 type ResultMesh = Result<MeshType, MeshExtensionError>;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -150,6 +242,8 @@ pub struct Config<END, EVD, EED, EFD> {
     show_aspect_ratios_of_faces: bool,
     #[serde(default = "default_draw_faces_violating_aspect_ratio")]
     draw_faces_violating_aspect_ratio: bool,
+    #[serde(default = "default_draw_cloth_vertex_data")]
+    draw_cloth_vertex_data: bool,
 
     #[serde(skip)]
     element: Element,
@@ -192,6 +286,8 @@ pub struct Config<END, EVD, EED, EFD> {
 
     #[serde(default = "default_aspect_ratio_metric")]
     aspect_ratio_metric: AspectRatioMetric,
+    #[serde(default = "default_cloth_vertex_elements")]
+    cloth_vertex_elements: ClothVertexElements,
 
     #[serde(default = "default_fps_limit")]
     fps_limit: f64,
@@ -270,12 +366,20 @@ fn default_draw_faces_violating_aspect_ratio() -> bool {
     false
 }
 
+fn default_draw_cloth_vertex_data() -> bool {
+    false
+}
+
 fn default_aspect_ratio_min() -> f64 {
     0.1
 }
 
 fn default_aspect_ratio_metric() -> AspectRatioMetric {
     AspectRatioMetric::MeasureWithInterpolationError
+}
+
+fn default_cloth_vertex_elements() -> ClothVertexElements {
+    ClothVertexElements::X
 }
 
 fn default_fps_limit() -> f64 {
@@ -301,6 +405,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             draw_anisotropic_flippable_edges: default_draw_anisotropic_flippable_edges(),
             show_aspect_ratios_of_faces: default_show_aspect_ratios_of_faces(),
             draw_faces_violating_aspect_ratio: default_draw_faces_violating_aspect_ratio(),
+            draw_cloth_vertex_data: default_draw_cloth_vertex_data(),
 
             element: Element::Node,
             element_index: 0,
@@ -333,6 +438,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             aspect_ratio_min: default_aspect_ratio_min(),
 
             aspect_ratio_metric: default_aspect_ratio_metric(),
+            cloth_vertex_elements: default_cloth_vertex_elements(),
 
             fps_limit: default_fps_limit(),
 
@@ -486,6 +592,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             &mut self.draw_faces_violating_aspect_ratio,
             "Draw Faces Violating Aspect Ratio Minimum",
         );
+        ui.checkbox(&mut self.draw_cloth_vertex_data, "Draw Cloth Vertex Data");
 
         egui::ComboBox::from_label("Element Type")
             .selected_text(format!("{}", self.element))
@@ -689,6 +796,18 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                         &mut self.aspect_ratio_metric,
                         metric,
                         format!("{}", metric),
+                    );
+                });
+            });
+
+        egui::ComboBox::from_label("Cloth Vertex Elements")
+            .selected_text(format!("{}", self.cloth_vertex_elements))
+            .show_ui(ui, |ui| {
+                ClothVertexElements::all().for_each(|element| {
+                    ui.selectable_value(
+                        &mut self.cloth_vertex_elements,
+                        element,
+                        format!("{}", element),
                     );
                 });
             });
@@ -1052,6 +1171,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
         self.draw_faces_violating_aspect_ratio
     }
 
+    pub fn get_draw_cloth_vertex_data(&self) -> bool {
+        self.draw_cloth_vertex_data
+    }
+
     pub fn get_element(&self) -> Element {
         self.element
     }
@@ -1134,6 +1257,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
     pub fn get_aspect_ratio_metric(&self) -> AspectRatioMetric {
         self.aspect_ratio_metric
+    }
+
+    pub fn get_cloth_vertex_elements(&self) -> ClothVertexElements {
+        self.cloth_vertex_elements
     }
 
     pub fn get_fps_limit(&self) -> f64 {

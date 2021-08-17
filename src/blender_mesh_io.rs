@@ -16,9 +16,9 @@ use quick_renderer::drawable::Drawable;
 use quick_renderer::gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode};
 use quick_renderer::{glm, mesh, shader};
 
-use crate::config;
 use crate::curve::{PointNormalTriangle, PointNormalTriangleDrawData};
 use crate::prelude::DrawUI;
+use crate::{config, util};
 use crate::{
     config::Config,
     curve::{CubicBezierCurve, CubicBezierCurveDrawData},
@@ -102,34 +102,40 @@ pub(crate) mod io_structs {
 
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub struct ClothVertex {
-        flags: i32,
-        v: Float3,
-        xconst: Float3,
-        x: Float3,
-        xold: Float3,
-        tx: Float3,
-        txold: Float3,
-        tv: Float3,
-        mass: f32,
-        goal: f32,
-        impulse: Float3,
-        xrest: Float3,
-        dcvel: Float3,
-        impulse_count: u32,
-        avg_spring_len: f32,
-        struct_stiff: f32,
-        bend_stiff: f32,
-        shear_stiff: f32,
-        spring_count: i32,
-        shrink_factor: f32,
-        internal_stiff: f32,
-        pressure_factor: f32,
+        pub flags: i32,
+        pub v: Float3,
+        pub xconst: Float3,
+        pub x: Float3,
+        pub xold: Float3,
+        pub tx: Float3,
+        pub txold: Float3,
+        pub tv: Float3,
+        pub mass: f32,
+        pub goal: f32,
+        pub impulse: Float3,
+        pub xrest: Float3,
+        pub dcvel: Float3,
+        pub impulse_count: u32,
+        pub avg_spring_len: f32,
+        pub struct_stiff: f32,
+        pub bend_stiff: f32,
+        pub shear_stiff: f32,
+        pub spring_count: i32,
+        pub shrink_factor: f32,
+        pub internal_stiff: f32,
+        pub pressure_factor: f32,
     }
 
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub struct ClothNodeData {
         cloth_node_data_str: String,
         cloth_node_data: ClothVertex,
+    }
+
+    impl ClothNodeData {
+        pub fn get_cloth_node_data(&self) -> &ClothVertex {
+            &self.cloth_node_data
+        }
     }
 
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -712,6 +718,86 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
         let (v1, v2) = self.get_checked_verts_of_edge(edge, false);
 
         self.compute_edge_size_sq_from_v1_v2(v1, v2)
+    }
+}
+
+pub trait ClothAdaptiveMeshExtension {
+    fn cloth_adaptive_mesh_visualize_config(
+        &self,
+        config: &Config<
+            io_structs::NodeData<io_structs::ClothNodeData>,
+            io_structs::VertData,
+            io_structs::EdgeData,
+            io_structs::EmptyExtraData,
+        >,
+        imm: &mut GPUImmediate,
+    ) -> Result<(), MeshExtensionError>;
+}
+
+impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
+    fn cloth_adaptive_mesh_visualize_config(
+        &self,
+        config: &Config<
+            io_structs::NodeData<io_structs::ClothNodeData>,
+            io_structs::VertData,
+            io_structs::EdgeData,
+            io_structs::EmptyExtraData,
+        >,
+        imm: &mut GPUImmediate,
+    ) -> Result<(), MeshExtensionError> {
+        if config.get_draw_cloth_vertex_data() {
+            let color = glm::vec4(0.1, 0.3, 0.6, 1.0);
+
+            let axis_conversion_matrix = &util::axis_conversion_matrix(
+                util::Axis::Y,
+                util::Axis::Z,
+                util::Axis::NegZ,
+                util::Axis::Y,
+            );
+            let mesh_3d_model_matrix = &config.get_mesh_transform().get_matrix();
+
+            match config.get_cloth_vertex_elements() {
+                config::ClothVertexElements::Flags => todo!(),
+                config::ClothVertexElements::V => todo!(),
+                config::ClothVertexElements::Xconst => todo!(),
+                config::ClothVertexElements::X => {
+                    self.get_nodes().iter().try_for_each(|(_, node)| {
+                        let x = node
+                            .extra_data
+                            .as_ref()
+                            .ok_or(MeshExtensionError::NoExtraData)?
+                            .get_extra_data()
+                            .get_cloth_node_data()
+                            .x
+                            .into();
+                        let x = apply_model_matrix_vec3(&x, axis_conversion_matrix);
+                        let x = apply_model_matrix_vec3(&x, mesh_3d_model_matrix);
+                        draw_sphere_at(&x, color, imm);
+                        Ok(())
+                    })
+                }
+                config::ClothVertexElements::Xold => todo!(),
+                config::ClothVertexElements::Tx => todo!(),
+                config::ClothVertexElements::Txold => todo!(),
+                config::ClothVertexElements::Tv => todo!(),
+                config::ClothVertexElements::Mass => todo!(),
+                config::ClothVertexElements::Goal => todo!(),
+                config::ClothVertexElements::Impulse => todo!(),
+                config::ClothVertexElements::Xrest => todo!(),
+                config::ClothVertexElements::Dcvel => todo!(),
+                config::ClothVertexElements::ImpulseCount => todo!(),
+                config::ClothVertexElements::AvgSpringLen => todo!(),
+                config::ClothVertexElements::StructStiff => todo!(),
+                config::ClothVertexElements::BendStiff => todo!(),
+                config::ClothVertexElements::ShearStiff => todo!(),
+                config::ClothVertexElements::SpringCount => todo!(),
+                config::ClothVertexElements::ShrinkFactor => todo!(),
+                config::ClothVertexElements::InternalStiff => todo!(),
+                config::ClothVertexElements::PressureFactor => todo!(),
+            }
+        } else {
+            Ok(())
+        }
     }
 }
 

@@ -19,3 +19,6 @@ serde_json = "1.0"
 
 [patch."ssh://git@github.com/ishbosamiya/quick_renderer.git"]
 quick_renderer = { path = "../../../quick_renderer/" }
+
+[features]
+use_cloth_adaptive_mesh = []

@@ -2,6 +2,8 @@ use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
 
+#[cfg(feature = "use_cloth_adaptive_mesh")]
+use mesh_analyzer::blender_mesh_io::ClothAdaptiveMeshExtension;
 use mesh_analyzer::blender_mesh_io::{AdaptiveMeshExtension, MeshExtensionError, MeshUVDrawData};
 use quick_renderer::camera::WindowCamera;
 use quick_renderer::drawable::Drawable;
@@ -246,6 +248,10 @@ fn main() {
                         mesh_errors_maybe = mesh.visualize_config(&config, &mut imm);
                         adaptive_mesh_errors_maybe =
                             mesh.adaptive_mesh_visualize_config(&config, &mut imm);
+
+                        #[cfg(feature = "use_cloth_adaptive_mesh")]
+                        mesh.cloth_adaptive_mesh_visualize_config(&config, &mut imm)
+                            .unwrap_or(());
                     }
                     Err(_) => {
                         mesh_errors_maybe = Err(MeshExtensionError::NoMesh);
