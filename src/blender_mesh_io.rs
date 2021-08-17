@@ -1,3 +1,4 @@
+use quick_renderer::egui::{self, Ui};
 use quick_renderer::mesh::builtins::get_ico_sphere_subd_00;
 use quick_renderer::mesh::{
     apply_model_matrix_to_normal, apply_model_matrix_vec2, apply_model_matrix_vec3, MeshDrawData,
@@ -16,6 +17,7 @@ use quick_renderer::drawable::Drawable;
 use quick_renderer::gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode};
 use quick_renderer::{glm, mesh, shader};
 
+use crate::config::ClothVertexElements;
 use crate::curve::{PointNormalTriangle, PointNormalTriangleDrawData};
 use crate::prelude::DrawUI;
 use crate::{config, util};
@@ -762,8 +764,8 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
             let mut points: Vec<glm::DVec3> = Vec::new();
 
             match config.get_cloth_vertex_elements() {
-                config::ClothVertexElements::Flags => todo!(),
-                config::ClothVertexElements::V => self
+                ClothVertexElements::Flags => todo!(),
+                ClothVertexElements::V => self
                     .get_nodes()
                     .iter()
                     .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
@@ -780,22 +782,23 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
                         draw_style = DrawStyle::Line;
                         Ok(())
                     })?,
-                config::ClothVertexElements::Xconst => self
-                    .get_nodes()
-                    .iter()
-                    .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
-                        let cloth_vertex = node
-                            .extra_data
-                            .as_ref()
-                            .ok_or(MeshExtensionError::NoExtraData)?
-                            .get_extra_data()
-                            .get_cloth_node_data();
-                        let xconst = cloth_vertex.xconst.into();
-                        points.push(xconst);
-                        draw_style = DrawStyle::Point;
-                        Ok(())
-                    })?,
-                config::ClothVertexElements::X => self
+                ClothVertexElements::Xconst => {
+                    self.get_nodes()
+                        .iter()
+                        .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
+                            let cloth_vertex = node
+                                .extra_data
+                                .as_ref()
+                                .ok_or(MeshExtensionError::NoExtraData)?
+                                .get_extra_data()
+                                .get_cloth_node_data();
+                            let xconst = cloth_vertex.xconst.into();
+                            points.push(xconst);
+                            draw_style = DrawStyle::Point;
+                            Ok(())
+                        })?
+                }
+                ClothVertexElements::X => self
                     .get_nodes()
                     .iter()
                     .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
@@ -810,22 +813,23 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
                         draw_style = DrawStyle::Point;
                         Ok(())
                     })?,
-                config::ClothVertexElements::Xold => self
-                    .get_nodes()
-                    .iter()
-                    .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
-                        let cloth_vertex = node
-                            .extra_data
-                            .as_ref()
-                            .ok_or(MeshExtensionError::NoExtraData)?
-                            .get_extra_data()
-                            .get_cloth_node_data();
-                        let xold = cloth_vertex.xold.into();
-                        points.push(xold);
-                        draw_style = DrawStyle::Point;
-                        Ok(())
-                    })?,
-                config::ClothVertexElements::Tx => self
+                ClothVertexElements::Xold => {
+                    self.get_nodes()
+                        .iter()
+                        .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
+                            let cloth_vertex = node
+                                .extra_data
+                                .as_ref()
+                                .ok_or(MeshExtensionError::NoExtraData)?
+                                .get_extra_data()
+                                .get_cloth_node_data();
+                            let xold = cloth_vertex.xold.into();
+                            points.push(xold);
+                            draw_style = DrawStyle::Point;
+                            Ok(())
+                        })?
+                }
+                ClothVertexElements::Tx => self
                     .get_nodes()
                     .iter()
                     .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
@@ -840,22 +844,23 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
                         draw_style = DrawStyle::Point;
                         Ok(())
                     })?,
-                config::ClothVertexElements::Txold => self
-                    .get_nodes()
-                    .iter()
-                    .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
-                        let cloth_vertex = node
-                            .extra_data
-                            .as_ref()
-                            .ok_or(MeshExtensionError::NoExtraData)?
-                            .get_extra_data()
-                            .get_cloth_node_data();
-                        let txold = cloth_vertex.txold.into();
-                        points.push(txold);
-                        draw_style = DrawStyle::Point;
-                        Ok(())
-                    })?,
-                config::ClothVertexElements::Tv => self
+                ClothVertexElements::Txold => {
+                    self.get_nodes()
+                        .iter()
+                        .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
+                            let cloth_vertex = node
+                                .extra_data
+                                .as_ref()
+                                .ok_or(MeshExtensionError::NoExtraData)?
+                                .get_extra_data()
+                                .get_cloth_node_data();
+                            let txold = cloth_vertex.txold.into();
+                            points.push(txold);
+                            draw_style = DrawStyle::Point;
+                            Ok(())
+                        })?
+                }
+                ClothVertexElements::Tv => self
                     .get_nodes()
                     .iter()
                     .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
@@ -872,66 +877,69 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
                         draw_style = DrawStyle::Line;
                         Ok(())
                     })?,
-                config::ClothVertexElements::Mass => todo!(),
-                config::ClothVertexElements::Goal => todo!(),
-                config::ClothVertexElements::Impulse => self
-                    .get_nodes()
-                    .iter()
-                    .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
-                        let cloth_vertex = node
-                            .extra_data
-                            .as_ref()
-                            .ok_or(MeshExtensionError::NoExtraData)?
-                            .get_extra_data()
-                            .get_cloth_node_data();
-                        let x = cloth_vertex.x.into();
-                        let impulse: glm::DVec3 = cloth_vertex.impulse.into();
-                        points.push(x);
-                        points.push(x + impulse);
-                        draw_style = DrawStyle::Line;
-                        Ok(())
-                    })?,
-                config::ClothVertexElements::Xrest => self
-                    .get_nodes()
-                    .iter()
-                    .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
-                        let cloth_vertex = node
-                            .extra_data
-                            .as_ref()
-                            .ok_or(MeshExtensionError::NoExtraData)?
-                            .get_extra_data()
-                            .get_cloth_node_data();
-                        let xrest = cloth_vertex.xrest.into();
-                        points.push(xrest);
-                        draw_style = DrawStyle::Point;
-                        Ok(())
-                    })?,
-                config::ClothVertexElements::Dcvel => self
-                    .get_nodes()
-                    .iter()
-                    .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
-                        let cloth_vertex = node
-                            .extra_data
-                            .as_ref()
-                            .ok_or(MeshExtensionError::NoExtraData)?
-                            .get_extra_data()
-                            .get_cloth_node_data();
-                        let x = cloth_vertex.x.into();
-                        let dcvel: glm::DVec3 = cloth_vertex.dcvel.into();
-                        points.push(x);
-                        points.push(x + dcvel);
-                        draw_style = DrawStyle::Line;
-                        Ok(())
-                    })?,
-                config::ClothVertexElements::ImpulseCount => todo!(),
-                config::ClothVertexElements::AvgSpringLen => todo!(),
-                config::ClothVertexElements::StructStiff => todo!(),
-                config::ClothVertexElements::BendStiff => todo!(),
-                config::ClothVertexElements::ShearStiff => todo!(),
-                config::ClothVertexElements::SpringCount => todo!(),
-                config::ClothVertexElements::ShrinkFactor => todo!(),
-                config::ClothVertexElements::InternalStiff => todo!(),
-                config::ClothVertexElements::PressureFactor => todo!(),
+                ClothVertexElements::Mass => todo!(),
+                ClothVertexElements::Goal => todo!(),
+                ClothVertexElements::Impulse => {
+                    self.get_nodes()
+                        .iter()
+                        .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
+                            let cloth_vertex = node
+                                .extra_data
+                                .as_ref()
+                                .ok_or(MeshExtensionError::NoExtraData)?
+                                .get_extra_data()
+                                .get_cloth_node_data();
+                            let x = cloth_vertex.x.into();
+                            let impulse: glm::DVec3 = cloth_vertex.impulse.into();
+                            points.push(x);
+                            points.push(x + impulse);
+                            draw_style = DrawStyle::Line;
+                            Ok(())
+                        })?
+                }
+                ClothVertexElements::Xrest => {
+                    self.get_nodes()
+                        .iter()
+                        .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
+                            let cloth_vertex = node
+                                .extra_data
+                                .as_ref()
+                                .ok_or(MeshExtensionError::NoExtraData)?
+                                .get_extra_data()
+                                .get_cloth_node_data();
+                            let xrest = cloth_vertex.xrest.into();
+                            points.push(xrest);
+                            draw_style = DrawStyle::Point;
+                            Ok(())
+                        })?
+                }
+                ClothVertexElements::Dcvel => {
+                    self.get_nodes()
+                        .iter()
+                        .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
+                            let cloth_vertex = node
+                                .extra_data
+                                .as_ref()
+                                .ok_or(MeshExtensionError::NoExtraData)?
+                                .get_extra_data()
+                                .get_cloth_node_data();
+                            let x = cloth_vertex.x.into();
+                            let dcvel: glm::DVec3 = cloth_vertex.dcvel.into();
+                            points.push(x);
+                            points.push(x + dcvel);
+                            draw_style = DrawStyle::Line;
+                            Ok(())
+                        })?
+                }
+                ClothVertexElements::ImpulseCount => todo!(),
+                ClothVertexElements::AvgSpringLen => todo!(),
+                ClothVertexElements::StructStiff => todo!(),
+                ClothVertexElements::BendStiff => todo!(),
+                ClothVertexElements::ShearStiff => todo!(),
+                ClothVertexElements::SpringCount => todo!(),
+                ClothVertexElements::ShrinkFactor => todo!(),
+                ClothVertexElements::InternalStiff => todo!(),
+                ClothVertexElements::PressureFactor => todo!(),
             }
 
             let color = glm::convert(config.get_cloth_vertex_data_color());
@@ -968,6 +976,110 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
         } else {
             Ok(())
         }
+    }
+}
+
+impl DrawUI for ClothAdaptiveMesh {
+    type ExtraData = Config<
+        io_structs::NodeData<io_structs::ClothNodeData>,
+        io_structs::VertData,
+        io_structs::EdgeData,
+        io_structs::EmptyExtraData,
+    >;
+
+    fn draw_ui(&self, extra_data: &Self::ExtraData, ui: &mut Ui) {
+        let config = &extra_data;
+        if config.get_draw_cloth_vertex_data() {
+            egui::Window::new("Cloth Vertex Data").show(ui.ctx(), |ui| {
+                egui::ScrollArea::auto_sized().show(ui, |ui| {
+                    self.get_nodes()
+                        .iter()
+                        .enumerate()
+                        .for_each(|(i, (_, node))| {
+                            ui.horizontal(|ui| {
+                                ui.label(format!("{:04}", i));
+                                let cloth_vertex = node.extra_data.as_ref().map(|node_data| {
+                                    node_data.get_extra_data().get_cloth_node_data()
+                                });
+                                if let Some(cloth_vertex) = cloth_vertex {
+                                    match config.get_cloth_vertex_elements() {
+                                        ClothVertexElements::Flags => {
+                                            ui.label(format!("{}", cloth_vertex.flags))
+                                        }
+                                        ClothVertexElements::V => {
+                                            ui.label(format!("{}", cloth_vertex.v))
+                                        }
+                                        ClothVertexElements::Xconst => {
+                                            ui.label(format!("{}", cloth_vertex.xconst))
+                                        }
+                                        ClothVertexElements::X => {
+                                            ui.label(format!("{}", cloth_vertex.x))
+                                        }
+                                        ClothVertexElements::Xold => {
+                                            ui.label(format!("{}", cloth_vertex.xold))
+                                        }
+                                        ClothVertexElements::Tx => {
+                                            ui.label(format!("{}", cloth_vertex.tx))
+                                        }
+                                        ClothVertexElements::Txold => {
+                                            ui.label(format!("{}", cloth_vertex.txold))
+                                        }
+                                        ClothVertexElements::Tv => {
+                                            ui.label(format!("{}", cloth_vertex.tv))
+                                        }
+                                        ClothVertexElements::Mass => {
+                                            ui.label(format!("{}", cloth_vertex.mass))
+                                        }
+                                        ClothVertexElements::Goal => {
+                                            ui.label(format!("{}", cloth_vertex.goal))
+                                        }
+                                        ClothVertexElements::Impulse => {
+                                            ui.label(format!("{}", cloth_vertex.impulse))
+                                        }
+                                        ClothVertexElements::Xrest => {
+                                            ui.label(format!("{}", cloth_vertex.xrest))
+                                        }
+                                        ClothVertexElements::Dcvel => {
+                                            ui.label(format!("{}", cloth_vertex.dcvel))
+                                        }
+                                        ClothVertexElements::ImpulseCount => {
+                                            ui.label(format!("{}", cloth_vertex.impulse_count))
+                                        }
+                                        ClothVertexElements::AvgSpringLen => {
+                                            ui.label(format!("{}", cloth_vertex.avg_spring_len))
+                                        }
+                                        ClothVertexElements::StructStiff => {
+                                            ui.label(format!("{}", cloth_vertex.struct_stiff))
+                                        }
+                                        ClothVertexElements::BendStiff => {
+                                            ui.label(format!("{}", cloth_vertex.bend_stiff))
+                                        }
+                                        ClothVertexElements::ShearStiff => {
+                                            ui.label(format!("{}", cloth_vertex.shear_stiff))
+                                        }
+                                        ClothVertexElements::SpringCount => {
+                                            ui.label(format!("{}", cloth_vertex.spring_count))
+                                        }
+                                        ClothVertexElements::ShrinkFactor => {
+                                            ui.label(format!("{}", cloth_vertex.shrink_factor))
+                                        }
+                                        ClothVertexElements::InternalStiff => {
+                                            ui.label(format!("{}", cloth_vertex.internal_stiff))
+                                        }
+                                        ClothVertexElements::PressureFactor => {
+                                            ui.label(format!("{}", cloth_vertex.pressure_factor))
+                                        }
+                                    };
+                                }
+                            });
+                        });
+                });
+            });
+        }
+    }
+
+    fn draw_ui_edit(&mut self, _extra_data: &Self::ExtraData, _ui: &mut Ui) {
+        unreachable!("No operation needs this yet")
     }
 }
 
@@ -1055,7 +1167,7 @@ impl MeshElementReferences {
 impl DrawUI for MeshElementReferences {
     type ExtraData = ();
 
-    fn draw_ui(&self, _extra_data: &Self::ExtraData, ui: &mut quick_renderer::egui::Ui) {
+    fn draw_ui(&self, _extra_data: &Self::ExtraData, ui: &mut Ui) {
         ui.horizontal(|ui| {
             ui.label("Node");
             ui.label(self.nodes.as_ref().map_or_else(
@@ -1118,7 +1230,7 @@ impl DrawUI for MeshElementReferences {
         });
     }
 
-    fn draw_ui_edit(&mut self, _extra_data: &Self::ExtraData, _ui: &mut quick_renderer::egui::Ui) {
+    fn draw_ui_edit(&mut self, _extra_data: &Self::ExtraData, _ui: &mut Ui) {
         unreachable!()
     }
 }
