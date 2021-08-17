@@ -878,9 +878,55 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
                     })?,
                 config::ClothVertexElements::Mass => todo!(),
                 config::ClothVertexElements::Goal => todo!(),
-                config::ClothVertexElements::Impulse => todo!(),
-                config::ClothVertexElements::Xrest => todo!(),
-                config::ClothVertexElements::Dcvel => todo!(),
+                config::ClothVertexElements::Impulse => self
+                    .get_nodes()
+                    .iter()
+                    .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
+                        let cloth_vertex = node
+                            .extra_data
+                            .as_ref()
+                            .ok_or(MeshExtensionError::NoExtraData)?
+                            .get_extra_data()
+                            .get_cloth_node_data();
+                        let x = cloth_vertex.x.into();
+                        let impulse: glm::DVec3 = cloth_vertex.impulse.into();
+                        points.push(x);
+                        points.push(x + impulse);
+                        draw_style = DrawStyle::Line;
+                        Ok(())
+                    })?,
+                config::ClothVertexElements::Xrest => self
+                    .get_nodes()
+                    .iter()
+                    .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
+                        let cloth_vertex = node
+                            .extra_data
+                            .as_ref()
+                            .ok_or(MeshExtensionError::NoExtraData)?
+                            .get_extra_data()
+                            .get_cloth_node_data();
+                        let xrest = cloth_vertex.xrest.into();
+                        points.push(xrest);
+                        draw_style = DrawStyle::Point;
+                        Ok(())
+                    })?,
+                config::ClothVertexElements::Dcvel => self
+                    .get_nodes()
+                    .iter()
+                    .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
+                        let cloth_vertex = node
+                            .extra_data
+                            .as_ref()
+                            .ok_or(MeshExtensionError::NoExtraData)?
+                            .get_extra_data()
+                            .get_cloth_node_data();
+                        let x = cloth_vertex.x.into();
+                        let dcvel: glm::DVec3 = cloth_vertex.dcvel.into();
+                        points.push(x);
+                        points.push(x + dcvel);
+                        draw_style = DrawStyle::Line;
+                        Ok(())
+                    })?,
                 config::ClothVertexElements::ImpulseCount => todo!(),
                 config::ClothVertexElements::AvgSpringLen => todo!(),
                 config::ClothVertexElements::StructStiff => todo!(),
