@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use quick_renderer::mesh::builtins::get_ico_sphere_subd_00;
 use quick_renderer::mesh::{
     apply_model_matrix_to_normal, apply_model_matrix_vec2, apply_model_matrix_vec3, MeshDrawData,
@@ -785,7 +784,21 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
                         draw_style = DrawStyle::Line;
                         Ok(())
                     })?,
-                config::ClothVertexElements::Xconst => todo!(),
+                config::ClothVertexElements::Xconst => self
+                    .get_nodes()
+                    .iter()
+                    .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
+                        let cloth_vertex = node
+                            .extra_data
+                            .as_ref()
+                            .ok_or(MeshExtensionError::NoExtraData)?
+                            .get_extra_data()
+                            .get_cloth_node_data();
+                        let xconst = cloth_vertex.xconst.into();
+                        points.push(xconst);
+                        draw_style = DrawStyle::Point;
+                        Ok(())
+                    })?,
                 config::ClothVertexElements::X => self
                     .get_nodes()
                     .iter()
@@ -801,10 +814,68 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
                         draw_style = DrawStyle::Point;
                         Ok(())
                     })?,
-                config::ClothVertexElements::Xold => todo!(),
-                config::ClothVertexElements::Tx => todo!(),
-                config::ClothVertexElements::Txold => todo!(),
-                config::ClothVertexElements::Tv => todo!(),
+                config::ClothVertexElements::Xold => self
+                    .get_nodes()
+                    .iter()
+                    .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
+                        let cloth_vertex = node
+                            .extra_data
+                            .as_ref()
+                            .ok_or(MeshExtensionError::NoExtraData)?
+                            .get_extra_data()
+                            .get_cloth_node_data();
+                        let xold = cloth_vertex.xold.into();
+                        points.push(xold);
+                        draw_style = DrawStyle::Point;
+                        Ok(())
+                    })?,
+                config::ClothVertexElements::Tx => self
+                    .get_nodes()
+                    .iter()
+                    .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
+                        let cloth_vertex = node
+                            .extra_data
+                            .as_ref()
+                            .ok_or(MeshExtensionError::NoExtraData)?
+                            .get_extra_data()
+                            .get_cloth_node_data();
+                        let tx = cloth_vertex.tx.into();
+                        points.push(tx);
+                        draw_style = DrawStyle::Point;
+                        Ok(())
+                    })?,
+                config::ClothVertexElements::Txold => self
+                    .get_nodes()
+                    .iter()
+                    .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
+                        let cloth_vertex = node
+                            .extra_data
+                            .as_ref()
+                            .ok_or(MeshExtensionError::NoExtraData)?
+                            .get_extra_data()
+                            .get_cloth_node_data();
+                        let txold = cloth_vertex.txold.into();
+                        points.push(txold);
+                        draw_style = DrawStyle::Point;
+                        Ok(())
+                    })?,
+                config::ClothVertexElements::Tv => self
+                    .get_nodes()
+                    .iter()
+                    .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
+                        let cloth_vertex = node
+                            .extra_data
+                            .as_ref()
+                            .ok_or(MeshExtensionError::NoExtraData)?
+                            .get_extra_data()
+                            .get_cloth_node_data();
+                        let x = cloth_vertex.x.into();
+                        let tv: glm::DVec3 = cloth_vertex.tv.into();
+                        points.push(x);
+                        points.push(x + tv);
+                        draw_style = DrawStyle::Line;
+                        Ok(())
+                    })?,
                 config::ClothVertexElements::Mass => todo!(),
                 config::ClothVertexElements::Goal => todo!(),
                 config::ClothVertexElements::Impulse => todo!(),
