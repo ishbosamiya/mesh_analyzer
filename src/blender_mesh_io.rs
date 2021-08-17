@@ -42,6 +42,12 @@ pub(crate) mod io_structs {
         z: f32,
     }
 
+    impl Display for Float3 {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "({:.4}, {:.4}, {:.4})", self.x, self.y, self.z)
+        }
+    }
+
     #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
     pub struct Float2 {
         x: f32,

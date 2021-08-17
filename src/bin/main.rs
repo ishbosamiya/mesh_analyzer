@@ -14,7 +14,7 @@ use quick_renderer::mesh::{MeshDrawData, MeshUseShader};
 use quick_renderer::shader;
 use quick_renderer::{egui, egui_glfw, gl, glfw, glm};
 
-use mesh_analyzer::config::Config;
+use mesh_analyzer::config::{ClothVertexElements, Config};
 use mesh_analyzer::prelude::*;
 
 fn main() {
@@ -333,6 +333,123 @@ fn main() {
 
                         config.draw_ui(&(), ui);
                         config.draw_ui_edit(&(), ui);
+
+                        #[cfg(feature = "use_cloth_adaptive_mesh")]
+                        if config.get_draw_cloth_vertex_data() {
+                            egui::Window::new("Cloth Vertex Data").show(ui.ctx(), |ui| {
+                                egui::ScrollArea::auto_sized().show(ui, |ui| {
+                                    if let Ok(Ok(mesh)) = config.get_mesh() {
+                                        mesh.get_nodes().iter().enumerate().for_each(
+                                            |(i, (_, node))| {
+                                                ui.horizontal(|ui| {
+                                                    ui.label(format!("{:04}", i));
+                                                    let cloth_vertex =
+                                                        node.extra_data.as_ref().map(|node_data| {
+                                                            node_data
+                                                                .get_extra_data()
+                                                                .get_cloth_node_data()
+                                                        });
+                                                    if let Some(cloth_vertex) = cloth_vertex {
+                                                        match config.get_cloth_vertex_elements() {
+                                                            ClothVertexElements::Flags => ui.label(
+                                                                format!("{}", cloth_vertex.flags),
+                                                            ),
+                                                            ClothVertexElements::V => ui.label(
+                                                                format!("{}", cloth_vertex.v),
+                                                            ),
+                                                            ClothVertexElements::Xconst => ui
+                                                                .label(format!(
+                                                                    "{}",
+                                                                    cloth_vertex.xconst
+                                                                )),
+                                                            ClothVertexElements::X => ui.label(
+                                                                format!("{}", cloth_vertex.x),
+                                                            ),
+                                                            ClothVertexElements::Xold => ui.label(
+                                                                format!("{}", cloth_vertex.xold),
+                                                            ),
+                                                            ClothVertexElements::Tx => ui.label(
+                                                                format!("{}", cloth_vertex.tx),
+                                                            ),
+                                                            ClothVertexElements::Txold => ui.label(
+                                                                format!("{}", cloth_vertex.txold),
+                                                            ),
+                                                            ClothVertexElements::Tv => ui.label(
+                                                                format!("{}", cloth_vertex.tv),
+                                                            ),
+                                                            ClothVertexElements::Mass => ui.label(
+                                                                format!("{}", cloth_vertex.mass),
+                                                            ),
+                                                            ClothVertexElements::Goal => ui.label(
+                                                                format!("{}", cloth_vertex.goal),
+                                                            ),
+                                                            ClothVertexElements::Impulse => ui
+                                                                .label(format!(
+                                                                    "{}",
+                                                                    cloth_vertex.impulse
+                                                                )),
+                                                            ClothVertexElements::Xrest => ui.label(
+                                                                format!("{}", cloth_vertex.xrest),
+                                                            ),
+                                                            ClothVertexElements::Dcvel => ui.label(
+                                                                format!("{}", cloth_vertex.dcvel),
+                                                            ),
+                                                            ClothVertexElements::ImpulseCount => ui
+                                                                .label(format!(
+                                                                    "{}",
+                                                                    cloth_vertex.impulse_count
+                                                                )),
+                                                            ClothVertexElements::AvgSpringLen => ui
+                                                                .label(format!(
+                                                                    "{}",
+                                                                    cloth_vertex.avg_spring_len
+                                                                )),
+                                                            ClothVertexElements::StructStiff => ui
+                                                                .label(format!(
+                                                                    "{}",
+                                                                    cloth_vertex.struct_stiff
+                                                                )),
+                                                            ClothVertexElements::BendStiff => ui
+                                                                .label(format!(
+                                                                    "{}",
+                                                                    cloth_vertex.bend_stiff
+                                                                )),
+                                                            ClothVertexElements::ShearStiff => ui
+                                                                .label(format!(
+                                                                    "{}",
+                                                                    cloth_vertex.shear_stiff
+                                                                )),
+                                                            ClothVertexElements::SpringCount => ui
+                                                                .label(format!(
+                                                                    "{}",
+                                                                    cloth_vertex.spring_count
+                                                                )),
+                                                            ClothVertexElements::ShrinkFactor => ui
+                                                                .label(format!(
+                                                                    "{}",
+                                                                    cloth_vertex.shrink_factor
+                                                                )),
+                                                            ClothVertexElements::InternalStiff => {
+                                                                ui.label(format!(
+                                                                    "{}",
+                                                                    cloth_vertex.internal_stiff
+                                                                ))
+                                                            }
+                                                            ClothVertexElements::PressureFactor => {
+                                                                ui.label(format!(
+                                                                    "{}",
+                                                                    cloth_vertex.pressure_factor
+                                                                ))
+                                                            }
+                                                        };
+                                                    }
+                                                });
+                                            },
+                                        );
+                                    }
+                                });
+                            });
+                        }
                     });
                 });
             let (width, height) = window.get_framebuffer_size();
