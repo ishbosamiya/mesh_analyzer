@@ -277,6 +277,8 @@ pub struct Config<END, EVD, EED, EFD> {
     face_normal_color: glm::DVec4,
     #[serde(default = "default_face_violating_aspect_ratio_color")]
     face_violating_aspect_ratio_color: glm::DVec4,
+    #[serde(default = "default_cloth_vertex_data_color")]
+    cloth_vertex_data_color: glm::DVec4,
 
     #[serde(default = "default_face_normal_size")]
     face_normal_size: f64,
@@ -340,6 +342,10 @@ fn default_face_normal_color() -> glm::DVec4 {
 
 fn default_face_violating_aspect_ratio_color() -> glm::DVec4 {
     glm::vec4(1.0, 0.22, 0.58, 1.0)
+}
+
+fn default_cloth_vertex_data_color() -> glm::DVec4 {
+    glm::vec4(0.1, 0.6, 0.8, 1.0)
 }
 
 fn default_face_normal_size() -> f64 {
@@ -432,6 +438,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             face_back_color: default_face_back_color(),
             face_normal_color: default_face_normal_color(),
             face_violating_aspect_ratio_color: default_face_violating_aspect_ratio_color(),
+            cloth_vertex_data_color: default_cloth_vertex_data_color(),
 
             normal_pull_factor: 0.2,
             face_normal_size: default_face_normal_size(),
@@ -775,6 +782,11 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             ui,
             "Face Violating Aspect Ratio Color",
             &mut self.face_violating_aspect_ratio_color,
+        );
+        color_edit_button_dvec4(
+            ui,
+            "Cloth Vertex Data Color",
+            &mut self.cloth_vertex_data_color,
         );
 
         ui.add(
@@ -1241,6 +1253,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
     pub fn get_face_violating_aspect_ratio_color(&self) -> glm::DVec4 {
         self.face_violating_aspect_ratio_color
+    }
+
+    pub fn get_cloth_vertex_data_color(&self) -> glm::DVec4 {
+        self.cloth_vertex_data_color
     }
 
     pub fn get_normal_pull_factor(&self) -> f64 {

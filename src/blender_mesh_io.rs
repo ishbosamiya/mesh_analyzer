@@ -746,16 +746,6 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
         imm: &mut GPUImmediate,
     ) -> Result<(), MeshExtensionError> {
         if config.get_draw_cloth_vertex_data() {
-            let color = glm::vec4(0.1, 0.3, 0.6, 1.0);
-
-            let axis_conversion_matrix = &util::axis_conversion_matrix(
-                util::Axis::Y,
-                util::Axis::Z,
-                util::Axis::NegZ,
-                util::Axis::Y,
-            );
-            let mesh_3d_model_matrix = &config.get_mesh_transform().get_matrix();
-
             enum DrawStyle {
                 None,
                 Point,
@@ -937,6 +927,15 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
                 config::ClothVertexElements::InternalStiff => todo!(),
                 config::ClothVertexElements::PressureFactor => todo!(),
             }
+
+            let color = glm::convert(config.get_cloth_vertex_data_color());
+            let axis_conversion_matrix = &util::axis_conversion_matrix(
+                util::Axis::Y,
+                util::Axis::Z,
+                util::Axis::NegZ,
+                util::Axis::Y,
+            );
+            let mesh_3d_model_matrix = &config.get_mesh_transform().get_matrix();
 
             match draw_style {
                 DrawStyle::Point => {
