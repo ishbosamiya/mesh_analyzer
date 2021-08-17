@@ -764,7 +764,7 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
             let mut points: Vec<glm::DVec3> = Vec::new();
 
             match config.get_cloth_vertex_elements() {
-                ClothVertexElements::Flags => todo!(),
+                ClothVertexElements::Flags => {}
                 ClothVertexElements::V => self
                     .get_nodes()
                     .iter()
@@ -877,8 +877,8 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
                         draw_style = DrawStyle::Line;
                         Ok(())
                     })?,
-                ClothVertexElements::Mass => todo!(),
-                ClothVertexElements::Goal => todo!(),
+                ClothVertexElements::Mass => {}
+                ClothVertexElements::Goal => {}
                 ClothVertexElements::Impulse => {
                     self.get_nodes()
                         .iter()
@@ -931,15 +931,15 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
                             Ok(())
                         })?
                 }
-                ClothVertexElements::ImpulseCount => todo!(),
-                ClothVertexElements::AvgSpringLen => todo!(),
-                ClothVertexElements::StructStiff => todo!(),
-                ClothVertexElements::BendStiff => todo!(),
-                ClothVertexElements::ShearStiff => todo!(),
-                ClothVertexElements::SpringCount => todo!(),
-                ClothVertexElements::ShrinkFactor => todo!(),
-                ClothVertexElements::InternalStiff => todo!(),
-                ClothVertexElements::PressureFactor => todo!(),
+                ClothVertexElements::ImpulseCount => {}
+                ClothVertexElements::AvgSpringLen => {}
+                ClothVertexElements::StructStiff => {}
+                ClothVertexElements::BendStiff => {}
+                ClothVertexElements::ShearStiff => {}
+                ClothVertexElements::SpringCount => {}
+                ClothVertexElements::ShrinkFactor => {}
+                ClothVertexElements::InternalStiff => {}
+                ClothVertexElements::PressureFactor => {}
             }
 
             let color = glm::convert(config.get_cloth_vertex_data_color());
@@ -969,7 +969,7 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
                         .collect();
                     draw_lines(&positions, color, imm);
                 }
-                DrawStyle::None => unreachable!(),
+                DrawStyle::None => {}
             }
 
             Ok(())
