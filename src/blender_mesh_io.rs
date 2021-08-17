@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use quick_renderer::mesh::builtins::get_ico_sphere_subd_00;
 use quick_renderer::mesh::{
     apply_model_matrix_to_normal, apply_model_matrix_vec2, apply_model_matrix_vec3, MeshDrawData,
@@ -767,20 +768,35 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
 
             match config.get_cloth_vertex_elements() {
                 config::ClothVertexElements::Flags => todo!(),
-                config::ClothVertexElements::V => todo!(),
+                config::ClothVertexElements::V => self
+                    .get_nodes()
+                    .iter()
+                    .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
+                        let cloth_vertex = node
+                            .extra_data
+                            .as_ref()
+                            .ok_or(MeshExtensionError::NoExtraData)?
+                            .get_extra_data()
+                            .get_cloth_node_data();
+                        let x = cloth_vertex.x.into();
+                        let v: glm::DVec3 = cloth_vertex.v.into();
+                        points.push(x);
+                        points.push(x + v);
+                        draw_style = DrawStyle::Line;
+                        Ok(())
+                    })?,
                 config::ClothVertexElements::Xconst => todo!(),
                 config::ClothVertexElements::X => self
                     .get_nodes()
                     .iter()
                     .try_for_each::<_, Result<(), MeshExtensionError>>(|(_, node)| {
-                        let x = node
+                        let cloth_vertex = node
                             .extra_data
                             .as_ref()
                             .ok_or(MeshExtensionError::NoExtraData)?
                             .get_extra_data()
-                            .get_cloth_node_data()
-                            .x
-                            .into();
+                            .get_cloth_node_data();
+                        let x = cloth_vertex.x.into();
                         points.push(x);
                         draw_style = DrawStyle::Point;
                         Ok(())
@@ -813,7 +829,16 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
                         draw_sphere_at(&pos, color, imm);
                     });
                 }
-                DrawStyle::Line => todo!(),
+                DrawStyle::Line => {
+                    let positions: Vec<_> = points
+                        .iter()
+                        .map(|pos| {
+                            let pos = apply_model_matrix_vec3(pos, axis_conversion_matrix);
+                            apply_model_matrix_vec3(&pos, mesh_3d_model_matrix)
+                        })
+                        .collect();
+                    draw_lines(&positions, color, imm);
+                }
                 DrawStyle::None => unreachable!(),
             }
 
@@ -1815,6 +1840,45 @@ fn draw_sphere_at(pos: &glm::DVec3, color: glm::Vec4, imm: &mut GPUImmediate) {
             Some(color),
         ))
         .unwrap();
+}
+
+fn draw_lines(positions: &[glm::DVec3], color: glm::Vec4, imm: &mut GPUImmediate) {
+    assert_ne!(positions.len(), 0);
+    assert!(positions.len() % 2 == 0);
+    let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
+        .as_ref()
+        .unwrap();
+
+    smooth_color_3d_shader.use_shader();
+    smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
+
+    let format = imm.get_cleared_vertex_format();
+    let pos_attr = format.add_attribute(
+        "in_pos\0".to_string(),
+        GPUVertCompType::F32,
+        3,
+        GPUVertFetchMode::Float,
+    );
+    let color_attr = format.add_attribute(
+        "in_color\0".to_string(),
+        GPUVertCompType::F32,
+        4,
+        GPUVertFetchMode::Float,
+    );
+
+    imm.begin_at_most(
+        GPUPrimType::Lines,
+        positions.len() * 2,
+        smooth_color_3d_shader,
+    );
+
+    positions.iter().for_each(|pos| {
+        let pos: glm::Vec3 = glm::convert(*pos);
+        imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+        imm.vertex_3f(pos_attr, pos[0], pos[1], pos[2]);
+    });
+
+    imm.end();
 }
 
 /// Draw the element only in a fancy way
