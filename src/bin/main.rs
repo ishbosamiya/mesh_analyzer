@@ -2,6 +2,8 @@ use egui::{FontDefinitions, FontFamily, TextStyle};
 use egui_glfw::EguiBackend;
 use glfw::{Action, Context, Key};
 
+use std::convert::TryInto;
+
 #[cfg(feature = "use_cloth_adaptive_mesh")]
 use mesh_analyzer::blender_mesh_io::ClothAdaptiveMeshExtension;
 use mesh_analyzer::blender_mesh_io::{AdaptiveMeshExtension, MeshExtensionError, MeshUVDrawData};
@@ -143,7 +145,14 @@ fn main() {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
-        let projection_matrix = &glm::convert(camera.get_projection_matrix(&window));
+        let (window_width, window_height) = window.get_size();
+        let (window_width, window_height): (usize, usize) = (
+            window_width.try_into().unwrap(),
+            window_height.try_into().unwrap(),
+        );
+
+        let projection_matrix =
+            &glm::convert(camera.get_projection_matrix(window_width, window_height));
         let view_matrix = &glm::convert(camera.get_view_matrix());
 
         // Shader stuff
@@ -385,6 +394,12 @@ fn handle_window_event<END, EVD, EED, EFD>(
         _ => {}
     };
 
+    let (window_width, window_height) = window.get_size();
+    let (window_width, window_height): (usize, usize) = (
+        window_width.try_into().unwrap(),
+        window_height.try_into().unwrap(),
+    );
+
     if window.get_mouse_button(glfw::MouseButtonMiddle) == glfw::Action::Press {
         if window.get_key(glfw::Key::LeftShift) == glfw::Action::Press {
             camera.pan(
@@ -393,10 +408,11 @@ fn handle_window_event<END, EVD, EED, EFD>(
                 cursor.0,
                 cursor.1,
                 1.0,
-                window,
+                window_width,
+                window_height,
             );
         } else if window.get_key(glfw::Key::LeftControl) == glfw::Action::Press {
-            camera.move_forward(last_cursor.1, cursor.1, window);
+            camera.move_forward(last_cursor.1, cursor.1, window_height);
         } else {
             camera.rotate_wrt_camera_origin(
                 last_cursor.0,
@@ -413,7 +429,8 @@ fn handle_window_event<END, EVD, EED, EFD>(
         if let Some(mods) = mods {
             if mods.contains(glfw::Modifiers::Control) {
                 let ray_origin = camera.get_position();
-                let ray_direction = camera.get_raycast_direction(cursor.0, cursor.1, window);
+                let ray_direction =
+                    camera.get_raycast_direction(cursor.0, cursor.1, window_width, window_height);
 
                 config
                     .select_element((ray_origin, ray_direction))
