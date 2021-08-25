@@ -121,11 +121,11 @@ pub(crate) mod io_structs {
         }
 
         pub fn is_no_self_coll(flag: i32) -> bool {
-            flag & 2 == 1
+            flag & 2 == 2
         }
 
         pub fn is_no_obj_coll(flag: i32) -> bool {
-            flag & 4 == 1
+            flag & 4 == 4
         }
     }
 
