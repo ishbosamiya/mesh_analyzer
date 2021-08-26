@@ -1735,6 +1735,72 @@ impl<
             imm.end();
         }
 
+        if config.get_draw_node_normals() && !self.get_nodes().is_empty() {
+            let mesh_3d_model_matrix = config.get_mesh_transform().get_matrix();
+
+            let color: glm::Vec4 = glm::convert(config.get_node_normal_color());
+
+            let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
+                .as_ref()
+                .unwrap();
+
+            smooth_color_3d_shader.use_shader();
+            smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
+
+            let format = imm.get_cleared_vertex_format();
+            let pos_attr = format.add_attribute(
+                "in_pos\0".to_string(),
+                GPUVertCompType::F32,
+                3,
+                GPUVertFetchMode::Float,
+            );
+            let color_attr = format.add_attribute(
+                "in_color\0".to_string(),
+                GPUVertCompType::F32,
+                4,
+                GPUVertFetchMode::Float,
+            );
+
+            imm.begin_at_most(
+                GPUPrimType::Lines,
+                self.get_nodes().len() * 2,
+                smooth_color_3d_shader,
+            );
+
+            self.get_nodes()
+                .iter()
+                .filter(|(_, node)| node.normal.is_some())
+                .for_each(|(_, node)| {
+                    let normal_start_pos = node.pos;
+
+                    let normal_start_pos: glm::Vec3 = glm::convert(normal_start_pos);
+                    let normal_end_pos: glm::Vec3 = normal_start_pos
+                        + glm::convert::<_, glm::Vec3>(
+                            apply_model_matrix_to_normal(
+                                &node.normal.unwrap(),
+                                &mesh_3d_model_matrix,
+                            ) * config.get_node_normal_size(),
+                        );
+
+                    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                    imm.vertex_3f(
+                        pos_attr,
+                        normal_start_pos[0],
+                        normal_start_pos[1],
+                        normal_start_pos[2],
+                    );
+                    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                    imm.vertex_3f(
+                        pos_attr,
+                        normal_end_pos[0],
+                        normal_end_pos[1],
+                        normal_end_pos[2],
+                    );
+                });
+
+            imm.end();
+        }
+
         if config.get_draw_triangles_violating_aspect_ratio() {
             let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
             let mesh_3d_model_matrix = &config.get_mesh_transform().get_matrix();

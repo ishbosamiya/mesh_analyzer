@@ -228,6 +228,8 @@ pub struct Config<END, EVD, EED, EFD> {
     draw_infinite_grid: bool,
     #[serde(default = "default_draw_face_normals")]
     draw_face_normals: bool,
+    #[serde(default = "default_draw_node_normals")]
+    draw_node_normals: bool,
     draw_wireframe: bool,
     #[serde(default = "default_draw_loose_nodes")]
     draw_loose_nodes: bool,
@@ -275,6 +277,8 @@ pub struct Config<END, EVD, EED, EFD> {
     face_back_color: glm::DVec4,
     #[serde(default = "default_face_normal_color")]
     face_normal_color: glm::DVec4,
+    #[serde(default = "default_node_normal_color")]
+    node_normal_color: glm::DVec4,
     #[serde(default = "default_face_violating_aspect_ratio_color")]
     face_violating_aspect_ratio_color: glm::DVec4,
     #[serde(default = "default_cloth_vertex_data_color")]
@@ -282,6 +286,8 @@ pub struct Config<END, EVD, EED, EFD> {
 
     #[serde(default = "default_face_normal_size")]
     face_normal_size: f64,
+    #[serde(default = "default_node_normal_size")]
+    node_normal_size: f64,
     normal_pull_factor: f64,
     #[serde(default = "default_aspect_ratio_min")]
     aspect_ratio_min: f64,
@@ -305,6 +311,10 @@ fn default_draw_infinite_grid() -> bool {
 }
 
 fn default_draw_face_normals() -> bool {
+    false
+}
+
+fn default_draw_node_normals() -> bool {
     false
 }
 
@@ -340,6 +350,10 @@ fn default_face_normal_color() -> glm::DVec4 {
     glm::vec4(1.0, 0.22, 0.22, 1.0)
 }
 
+fn default_node_normal_color() -> glm::DVec4 {
+    glm::vec4(1.0, 0.22, 0.22, 1.0)
+}
+
 fn default_face_violating_aspect_ratio_color() -> glm::DVec4 {
     glm::vec4(1.0, 0.22, 0.58, 1.0)
 }
@@ -349,6 +363,10 @@ fn default_cloth_vertex_data_color() -> glm::DVec4 {
 }
 
 fn default_face_normal_size() -> f64 {
+    1.0
+}
+
+fn default_node_normal_size() -> f64 {
     1.0
 }
 
@@ -403,6 +421,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
 
             draw_infinite_grid: default_draw_infinite_grid(),
             draw_face_normals: default_draw_face_normals(),
+            draw_node_normals: default_draw_node_normals(),
             draw_wireframe: false,
             draw_loose_nodes: default_draw_loose_nodes(),
             draw_loose_verts: default_draw_loose_verts(),
@@ -437,11 +456,13 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             face_front_color: default_face_front_color(),
             face_back_color: default_face_back_color(),
             face_normal_color: default_face_normal_color(),
+            node_normal_color: default_node_normal_color(),
             face_violating_aspect_ratio_color: default_face_violating_aspect_ratio_color(),
             cloth_vertex_data_color: default_cloth_vertex_data_color(),
 
             normal_pull_factor: 0.2,
             face_normal_size: default_face_normal_size(),
+            node_normal_size: default_node_normal_size(),
             aspect_ratio_min: default_aspect_ratio_min(),
 
             aspect_ratio_metric: default_aspect_ratio_metric(),
@@ -582,6 +603,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
 
         ui.checkbox(&mut self.draw_infinite_grid, "Draw Floor Grid");
         ui.checkbox(&mut self.draw_face_normals, "Draw Face Normals");
+        ui.checkbox(&mut self.draw_node_normals, "Draw Node Normals");
         ui.checkbox(&mut self.draw_wireframe, "Draw Wireframe");
         ui.checkbox(&mut self.draw_loose_nodes, "Draw Loose Nodes");
         ui.checkbox(&mut self.draw_loose_verts, "Draw Loose Verts");
@@ -778,6 +800,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
         color_edit_button_dvec4(ui, "Face Front Color", &mut self.face_front_color);
         color_edit_button_dvec4(ui, "Face Back Color", &mut self.face_back_color);
         color_edit_button_dvec4(ui, "Face Normal Color", &mut self.face_normal_color);
+        color_edit_button_dvec4(ui, "Node Normal Color", &mut self.node_normal_color);
         color_edit_button_dvec4(
             ui,
             "Face Violating Aspect Ratio Color",
@@ -794,7 +817,8 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                 .text("Bendiness of the fancy edges and faces"),
         );
 
-        ui.add(egui::Slider::new(&mut self.face_normal_size, 0.0..=2.0).text("Face normal size"));
+        ui.add(egui::Slider::new(&mut self.face_normal_size, 0.0..=2.0).text("Face Normal Size"));
+        ui.add(egui::Slider::new(&mut self.node_normal_size, 0.0..=2.0).text("Node Normal Size"));
 
         ui.add(
             egui::Slider::new(&mut self.aspect_ratio_min, 0.0..=1.0).text("Aspect Ratio Minimum"),
@@ -1159,6 +1183,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
         self.draw_face_normals
     }
 
+    pub fn get_draw_node_normals(&self) -> bool {
+        self.draw_node_normals
+    }
+
     pub fn get_draw_wireframe(&self) -> bool {
         self.draw_wireframe
     }
@@ -1251,6 +1279,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
         self.face_normal_color
     }
 
+    pub fn get_node_normal_color(&self) -> glm::DVec4 {
+        self.node_normal_color
+    }
+
     pub fn get_face_violating_aspect_ratio_color(&self) -> glm::DVec4 {
         self.face_violating_aspect_ratio_color
     }
@@ -1265,6 +1297,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
     pub fn get_face_normal_size(&self) -> f64 {
         self.face_normal_size
+    }
+
+    pub fn get_node_normal_size(&self) -> f64 {
+        self.node_normal_size
     }
 
     pub fn get_aspect_ratio_min(&self) -> f64 {
