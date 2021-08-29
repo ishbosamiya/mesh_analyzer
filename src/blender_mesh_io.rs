@@ -245,15 +245,39 @@ pub(crate) mod io_structs {
         }
     }
 
+    #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+    pub enum EdgeDataFlags {
+        EdgeBetweenSewingEdges = 1,
+    }
+
+    impl EdgeDataFlags {
+        pub fn is_edge_between_sewing_edges(flag: u32) -> bool {
+            flag & 1 == 1
+        }
+    }
+
+    impl Display for EdgeDataFlags {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                EdgeDataFlags::EdgeBetweenSewingEdges => write!(f, "Edge Between Sewing Edges"),
+            }
+        }
+    }
+
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub struct EdgeData {
         edge_data_str: String,
         size: f32,
+        flags: u32,
     }
 
     impl EdgeData {
         pub fn get_size(&self) -> f32 {
             self.size
+        }
+
+        pub fn get_flags(&self) -> u32 {
+            self.flags
         }
     }
 
