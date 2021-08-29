@@ -289,6 +289,8 @@ pub struct Config<END, EVD, EED, EFD> {
     cloth_vertex_data_color: glm::DVec4,
     #[serde(default = "default_edge_between_sewing_edges_color")]
     edge_between_sewing_edges_color: glm::DVec4,
+    #[serde(default = "default_edge_data_flags_color")]
+    edge_data_flags_color: glm::DVec4,
 
     #[serde(default = "default_face_normal_size")]
     face_normal_size: f64,
@@ -370,6 +372,10 @@ fn default_cloth_vertex_data_color() -> glm::DVec4 {
 
 fn default_edge_between_sewing_edges_color() -> glm::DVec4 {
     glm::vec4(0.71, 0.92, 0.27, 1.0)
+}
+
+fn default_edge_data_flags_color() -> glm::DVec4 {
+    glm::vec4(0.31, 0.57, 0.92, 1.0)
 }
 
 fn default_face_normal_size() -> f64 {
@@ -480,6 +486,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             face_violating_aspect_ratio_color: default_face_violating_aspect_ratio_color(),
             cloth_vertex_data_color: default_cloth_vertex_data_color(),
             edge_between_sewing_edges_color: default_edge_between_sewing_edges_color(),
+            edge_data_flags_color: default_edge_data_flags_color(),
 
             normal_pull_factor: 0.2,
             face_normal_size: default_face_normal_size(),
@@ -852,6 +859,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             "Edge Between Sewing Edges Color",
             &mut self.edge_between_sewing_edges_color,
         );
+        color_edit_button_dvec4(ui, "Edge Data Flags Color", &mut self.edge_data_flags_color);
 
         ui.add(
             egui::Slider::new(&mut self.normal_pull_factor, 0.0..=3.0)
@@ -1342,6 +1350,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
     pub fn get_edge_between_sewing_edges_color(&self) -> glm::DVec4 {
         self.edge_between_sewing_edges_color
+    }
+
+    pub fn get_edge_data_flags_color(&self) -> glm::DVec4 {
+        self.edge_data_flags_color
     }
 
     pub fn get_normal_pull_factor(&self) -> f64 {

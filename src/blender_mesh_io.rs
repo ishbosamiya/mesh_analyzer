@@ -725,7 +725,7 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
         >,
         imm: &mut GPUImmediate,
     ) -> Result<(), MeshExtensionError> {
-        let mut had_extra_data = true;
+        let mut vert_had_extra_data = true;
         if config.get_draw_anisotropic_flippable_edges() {
             let uv_plane_3d_model_matrix = config.get_uv_plane_3d_transform().get_matrix();
             self.get_edges()
@@ -733,7 +733,7 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
                 .filter(|(_, edge)| {
                     self.is_edge_flippable_anisotropic_aware(edge)
                         .unwrap_or_else(|_| {
-                            had_extra_data = false;
+                            vert_had_extra_data = false;
                             false
                         })
                 })
@@ -748,7 +748,37 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
                 });
         }
 
-        if had_extra_data {
+        let mut edge_had_extra_data = true;
+        if config.get_show_edge_data_flags() {
+            let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
+            let mesh_3d_model_matrix = &config.get_mesh_transform().get_matrix();
+
+            self.get_edges().iter().for_each(|(_, edge)| {
+                if let Some(data) = &edge.extra_data {
+                    if EdgeDataFlags::is_edge_between_sewing_edges(data.get_flags()) {
+                        self.draw_fancy_edge(
+                            edge,
+                            uv_plane_3d_model_matrix,
+                            imm,
+                            glm::convert(config.get_edge_data_flags_color()),
+                            config.get_normal_pull_factor(),
+                        );
+
+                        self.draw_fancy_node_edge(
+                            edge,
+                            mesh_3d_model_matrix,
+                            imm,
+                            glm::convert(config.get_edge_data_flags_color()),
+                            config.get_normal_pull_factor(),
+                        );
+                    }
+                } else {
+                    edge_had_extra_data = false;
+                }
+            });
+        }
+
+        if vert_had_extra_data && edge_had_extra_data {
             Ok(())
         } else {
             Err(MeshExtensionError::NoExtraData)
