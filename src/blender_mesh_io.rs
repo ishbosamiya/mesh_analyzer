@@ -17,7 +17,7 @@ use quick_renderer::drawable::Drawable;
 use quick_renderer::gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode};
 use quick_renderer::{glm, mesh, shader};
 
-use crate::blender_mesh_io::io_structs::ClothVertexFlag;
+use crate::blender_mesh_io::io_structs::{ClothVertexFlag, EdgeDataFlags};
 use crate::config::ClothVertexElements;
 use crate::curve::{PointNormalTriangle, PointNormalTriangleDrawData};
 use crate::prelude::DrawUI;
@@ -631,6 +631,8 @@ pub trait AdaptiveMeshExtension<END> {
         >,
         imm: &mut GPUImmediate,
     ) -> Result<(), MeshExtensionError>;
+
+    fn draw_ui_edge_flags(&self, ui: &mut egui::Ui);
 }
 
 impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
@@ -781,6 +783,27 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
         let (v1, v2) = self.get_checked_verts_of_edge(edge, false);
 
         self.compute_edge_size_sq_from_v1_v2(v1, v2)
+    }
+
+    fn draw_ui_edge_flags(&self, ui: &mut egui::Ui) {
+        self.get_edges()
+            .iter()
+            .enumerate()
+            .for_each(|(i, (_, edge))| {
+                ui.horizontal(|ui| {
+                    ui.label(format!("{:05}", i));
+                    match &edge.extra_data {
+                        Some(data) => {
+                            if EdgeDataFlags::is_edge_between_sewing_edges(data.get_flags()) {
+                                ui.label(format!("{}", EdgeDataFlags::EdgeBetweenSewingEdges));
+                            }
+                        }
+                        None => {
+                            ui.label("No Extra Data");
+                        }
+                    }
+                });
+            });
     }
 }
 

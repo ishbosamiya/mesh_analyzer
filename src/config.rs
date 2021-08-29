@@ -9,7 +9,7 @@ use quick_renderer::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    blender_mesh_io::{MeshExtensionError, MeshToBlenderMeshIndexMap},
+    blender_mesh_io::{AdaptiveMeshExtension, MeshExtensionError, MeshToBlenderMeshIndexMap},
     draw_ui::DrawUI,
     math::{self, Transform},
     prelude::MeshExtension,
@@ -248,6 +248,8 @@ pub struct Config<END, EVD, EED, EFD> {
     draw_cloth_vertex_data: bool,
     #[serde(default = "default_draw_edge_between_sewing_edges")]
     draw_edge_between_sewing_edges: bool,
+    #[serde(default = "default_show_edge_data_flags")]
+    show_edge_data_flags: bool,
 
     #[serde(skip)]
     element: Element,
@@ -406,6 +408,10 @@ fn default_draw_edge_between_sewing_edges() -> bool {
     false
 }
 
+fn default_show_edge_data_flags() -> bool {
+    false
+}
+
 fn default_aspect_ratio_min() -> f64 {
     0.1
 }
@@ -444,6 +450,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             draw_faces_violating_aspect_ratio: default_draw_faces_violating_aspect_ratio(),
             draw_cloth_vertex_data: default_draw_cloth_vertex_data(),
             draw_edge_between_sewing_edges: default_draw_edge_between_sewing_edges(),
+            show_edge_data_flags: default_show_edge_data_flags(),
 
             element: Element::Node,
             element_index: 0,
@@ -640,6 +647,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             &mut self.draw_edge_between_sewing_edges,
             "Draw Edge Between Sewing Edges",
         );
+        ui.checkbox(&mut self.show_edge_data_flags, "Show Edge Data Flags");
 
         egui::ComboBox::from_label("Element Type")
             .selected_text(format!("{}", self.element))
@@ -796,6 +804,16 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                         }
                     }
                 });
+            });
+
+        egui::Window::new("Edge Data Flags")
+            .open(&mut self.show_edge_data_flags)
+            .show(ui.ctx(), |ui| {
+                if let Some(mesh) = mesh {
+                    egui::ScrollArea::auto_sized().show(ui, |ui| {
+                        mesh.draw_ui_edge_flags(ui);
+                    });
+                }
             });
 
         color_edit_button_dvec4(ui, "Fancy Node Color", &mut self.node_color);
@@ -1240,6 +1258,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
     pub fn get_draw_edge_between_sewing_edges(&self) -> bool {
         self.draw_edge_between_sewing_edges
+    }
+
+    pub fn get_show_edge_data_flags(&self) -> bool {
+        self.show_edge_data_flags
     }
 
     pub fn get_element(&self) -> Element {
