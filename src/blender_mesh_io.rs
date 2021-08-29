@@ -1837,16 +1837,42 @@ impl<
                 let v1 = self.get_vert(v1_index).unwrap();
                 let v2 = self.get_vert(v2_index).unwrap();
 
-                let v1_has_loose_edge = v1.get_edges().iter().any(|edge_index| {
-                    let edge = self.get_edge(*edge_index).unwrap();
-                    edge.is_loose()
-                });
-                let v2_has_loose_edge = v2.get_edges().iter().any(|edge_index| {
-                    let edge = self.get_edge(*edge_index).unwrap();
-                    edge.is_loose()
+                let v1_loose_edges: Vec<_> = v1
+                    .get_edges()
+                    .iter()
+                    .filter(|edge_index| {
+                        let edge = self.get_edge(**edge_index).unwrap();
+                        edge.is_loose()
+                    })
+                    .collect();
+
+                let v2_loose_edges: Vec<_> = v2
+                    .get_edges()
+                    .iter()
+                    .filter(|edge_index| {
+                        let edge = self.get_edge(**edge_index).unwrap();
+                        edge.is_loose()
+                    })
+                    .collect();
+
+                let mut connecting_edge = false;
+                v1_loose_edges.iter().for_each(|v1_e_index| {
+                    let v1_e = self.get_edge(**v1_e_index).unwrap();
+                    let v1_e_ov_index = v1_e.get_other_vert_index(v1_index).unwrap();
+                    v2_loose_edges.iter().for_each(|v2_e_index| {
+                        let v2_e = self.get_edge(**v2_e_index).unwrap();
+                        let v2_e_ov_index = v2_e.get_other_vert_index(v2_index).unwrap();
+
+                        if self
+                            .get_connecting_edge_index(v1_e_ov_index, v2_e_ov_index)
+                            .is_some()
+                        {
+                            connecting_edge = true;
+                        }
+                    });
                 });
 
-                if v1_has_loose_edge && v2_has_loose_edge {
+                if connecting_edge {
                     self.draw_fancy_edge(
                         edge,
                         uv_plane_3d_model_matrix,
