@@ -786,6 +786,24 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
     }
 
     fn draw_ui_edge_flags(&self, ui: &mut egui::Ui) {
+        let num_edge_between_sewing_edges: usize = self
+            .get_edges()
+            .iter()
+            .map(|(_, edge)| {
+                if let Some(data) = &edge.extra_data {
+                    if EdgeDataFlags::is_edge_between_sewing_edges(data.get_flags()) {
+                        return 1;
+                    }
+                }
+                0
+            })
+            .sum();
+
+        ui.label(format!(
+            "Number of edges that are between sewing edges: {}",
+            num_edge_between_sewing_edges
+        ));
+
         self.get_edges()
             .iter()
             .enumerate()
