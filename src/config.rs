@@ -246,6 +246,8 @@ pub struct Config<END, EVD, EED, EFD> {
     draw_faces_violating_aspect_ratio: bool,
     #[serde(default = "default_draw_cloth_vertex_data")]
     draw_cloth_vertex_data: bool,
+    #[serde(default = "default_draw_edge_between_sewing_edges")]
+    draw_edge_between_sewing_edges: bool,
 
     #[serde(skip)]
     element: Element,
@@ -283,6 +285,8 @@ pub struct Config<END, EVD, EED, EFD> {
     face_violating_aspect_ratio_color: glm::DVec4,
     #[serde(default = "default_cloth_vertex_data_color")]
     cloth_vertex_data_color: glm::DVec4,
+    #[serde(default = "default_edge_between_sewing_edges_color")]
+    edge_between_sewing_edges_color: glm::DVec4,
 
     #[serde(default = "default_face_normal_size")]
     face_normal_size: f64,
@@ -362,6 +366,10 @@ fn default_cloth_vertex_data_color() -> glm::DVec4 {
     glm::vec4(0.1, 0.6, 0.8, 1.0)
 }
 
+fn default_edge_between_sewing_edges_color() -> glm::DVec4 {
+    glm::vec4(0.71, 0.92, 0.27, 1.0)
+}
+
 fn default_face_normal_size() -> f64 {
     1.0
 }
@@ -391,6 +399,10 @@ fn default_draw_faces_violating_aspect_ratio() -> bool {
 }
 
 fn default_draw_cloth_vertex_data() -> bool {
+    false
+}
+
+fn default_draw_edge_between_sewing_edges() -> bool {
     false
 }
 
@@ -431,6 +443,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             show_aspect_ratios_of_faces: default_show_aspect_ratios_of_faces(),
             draw_faces_violating_aspect_ratio: default_draw_faces_violating_aspect_ratio(),
             draw_cloth_vertex_data: default_draw_cloth_vertex_data(),
+            draw_edge_between_sewing_edges: default_draw_edge_between_sewing_edges(),
 
             element: Element::Node,
             element_index: 0,
@@ -459,6 +472,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             node_normal_color: default_node_normal_color(),
             face_violating_aspect_ratio_color: default_face_violating_aspect_ratio_color(),
             cloth_vertex_data_color: default_cloth_vertex_data_color(),
+            edge_between_sewing_edges_color: default_edge_between_sewing_edges_color(),
 
             normal_pull_factor: 0.2,
             face_normal_size: default_face_normal_size(),
@@ -622,6 +636,10 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             "Draw Faces Violating Aspect Ratio Minimum",
         );
         ui.checkbox(&mut self.draw_cloth_vertex_data, "Draw Cloth Vertex Data");
+        ui.checkbox(
+            &mut self.draw_edge_between_sewing_edges,
+            "Draw Edge Between Sewing Edges",
+        );
 
         egui::ComboBox::from_label("Element Type")
             .selected_text(format!("{}", self.element))
@@ -810,6 +828,11 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             ui,
             "Cloth Vertex Data Color",
             &mut self.cloth_vertex_data_color,
+        );
+        color_edit_button_dvec4(
+            ui,
+            "Edge Between Sewing Edges Color",
+            &mut self.edge_between_sewing_edges_color,
         );
 
         ui.add(
@@ -1215,6 +1238,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
         self.draw_cloth_vertex_data
     }
 
+    pub fn get_draw_edge_between_sewing_edges(&self) -> bool {
+        self.draw_edge_between_sewing_edges
+    }
+
     pub fn get_element(&self) -> Element {
         self.element
     }
@@ -1289,6 +1316,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
     pub fn get_cloth_vertex_data_color(&self) -> glm::DVec4 {
         self.cloth_vertex_data_color
+    }
+
+    pub fn get_edge_between_sewing_edges_color(&self) -> glm::DVec4 {
+        self.edge_between_sewing_edges_color
     }
 
     pub fn get_normal_pull_factor(&self) -> f64 {

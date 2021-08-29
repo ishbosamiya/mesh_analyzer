@@ -1827,6 +1827,45 @@ impl<
             });
         }
 
+        if config.get_draw_edge_between_sewing_edges() {
+            let uv_plane_3d_model_matrix = &config.get_uv_plane_3d_transform().get_matrix();
+            let mesh_3d_model_matrix = &config.get_mesh_transform().get_matrix();
+
+            self.get_edges().iter().for_each(|(_, edge)| {
+                let (v1_index, v2_index) = edge.get_verts().unwrap();
+
+                let v1 = self.get_vert(v1_index).unwrap();
+                let v2 = self.get_vert(v2_index).unwrap();
+
+                let v1_has_loose_edge = v1.get_edges().iter().any(|edge_index| {
+                    let edge = self.get_edge(*edge_index).unwrap();
+                    edge.is_loose()
+                });
+                let v2_has_loose_edge = v2.get_edges().iter().any(|edge_index| {
+                    let edge = self.get_edge(*edge_index).unwrap();
+                    edge.is_loose()
+                });
+
+                if v1_has_loose_edge && v2_has_loose_edge {
+                    self.draw_fancy_edge(
+                        edge,
+                        uv_plane_3d_model_matrix,
+                        imm,
+                        glm::convert(config.get_edge_between_sewing_edges_color()),
+                        config.get_normal_pull_factor(),
+                    );
+
+                    self.draw_fancy_node_edge(
+                        edge,
+                        mesh_3d_model_matrix,
+                        imm,
+                        glm::convert(config.get_edge_between_sewing_edges_color()),
+                        config.get_normal_pull_factor(),
+                    );
+                }
+            });
+        }
+
         match config.get_element() {
             crate::config::Element::Node => {
                 // TODO(ish): handle showing which verts couldn't be
