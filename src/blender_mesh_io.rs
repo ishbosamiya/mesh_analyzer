@@ -36,7 +36,7 @@ pub(crate) mod io_structs {
     use quick_renderer::{glm, mesh};
     use serde::{Deserialize, Serialize};
 
-    use crate::util;
+    use crate::{config::Element, util};
 
     #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
     pub struct Float3 {
@@ -370,14 +370,14 @@ pub(crate) mod io_structs {
 
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
     pub enum ConversionError {
-        NoElementInPosIndexMap(Index),
+        NoElementInPosIndexMap(Element, Index),
     }
 
     impl Display for ConversionError {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             match self {
-                ConversionError::NoElementInPosIndexMap(index) => {
-                    write!(f, "No element in pos index map: {:?}", index)
+                ConversionError::NoElementInPosIndexMap(element, index) => {
+                    write!(f, "No {} in pos index map: {:?}", element, index)
                 }
             }
         }
@@ -456,10 +456,12 @@ pub(crate) mod io_structs {
                         node_verts = node.1.get_verts_mut();
                     }
                     io_node.verts.iter().try_for_each(|io_node_vert_index| {
-                        let vert_i = io_mesh
-                            .vert_pos_index_map
-                            .get(io_node_vert_index)
-                            .ok_or(ConversionError::NoElementInPosIndexMap(*io_node_vert_index))?;
+                        let vert_i = io_mesh.vert_pos_index_map.get(io_node_vert_index).ok_or(
+                            ConversionError::NoElementInPosIndexMap(
+                                Element::Vert,
+                                *io_node_vert_index,
+                            ),
+                        )?;
                         node_verts.push(mesh::VertIndex(verts.get_unknown_gen(*vert_i).unwrap().1));
                         Ok(())
                     })?;
@@ -475,10 +477,12 @@ pub(crate) mod io_structs {
                         vert_edges = vert.1.get_edges_mut();
                     }
                     io_vert.edges.iter().try_for_each(|io_vert_edge_index| {
-                        let edge_i = io_mesh
-                            .edge_pos_index_map
-                            .get(io_vert_edge_index)
-                            .ok_or(ConversionError::NoElementInPosIndexMap(*io_vert_edge_index))?;
+                        let edge_i = io_mesh.edge_pos_index_map.get(io_vert_edge_index).ok_or(
+                            ConversionError::NoElementInPosIndexMap(
+                                Element::Edge,
+                                *io_vert_edge_index,
+                            ),
+                        )?;
                         vert_edges.push(mesh::EdgeIndex(edges.get_unknown_gen(*edge_i).unwrap().1));
                         Ok(())
                     })?;
@@ -492,7 +496,10 @@ pub(crate) mod io_structs {
                         || Ok(None),
                         |io_vert_node_index| {
                             let node_i = io_mesh.node_pos_index_map.get(io_vert_node_index).ok_or(
-                                ConversionError::NoElementInPosIndexMap(*io_vert_node_index),
+                                ConversionError::NoElementInPosIndexMap(
+                                    Element::Node,
+                                    *io_vert_node_index,
+                                ),
                             )?;
                             Ok(Some(mesh::NodeIndex(
                                 nodes.get_unknown_gen(*node_i).unwrap().1,
@@ -518,6 +525,7 @@ pub(crate) mod io_structs {
                                 .vert_pos_index_map
                                 .get(&io_edge_vert_1_index)
                                 .ok_or(ConversionError::NoElementInPosIndexMap(
+                                    Element::Vert,
                                     io_edge_vert_1_index,
                                 ))?;
 
@@ -525,6 +533,7 @@ pub(crate) mod io_structs {
                                 .vert_pos_index_map
                                 .get(&io_edge_vert_2_index)
                                 .ok_or(ConversionError::NoElementInPosIndexMap(
+                                    Element::Vert,
                                     io_edge_vert_2_index,
                                 ))?;
 
@@ -540,10 +549,12 @@ pub(crate) mod io_structs {
                         edge_faces = edge.1.get_faces_mut();
                     }
                     io_edge.faces.iter().try_for_each(|io_edge_face_index| {
-                        let face_i = io_mesh
-                            .face_pos_index_map
-                            .get(io_edge_face_index)
-                            .ok_or(ConversionError::NoElementInPosIndexMap(*io_edge_face_index))?;
+                        let face_i = io_mesh.face_pos_index_map.get(io_edge_face_index).ok_or(
+                            ConversionError::NoElementInPosIndexMap(
+                                Element::Face,
+                                *io_edge_face_index,
+                            ),
+                        )?;
                         edge_faces.push(mesh::FaceIndex(faces.get_unknown_gen(*face_i).unwrap().1));
                         Ok(())
                     })?;
@@ -560,10 +571,12 @@ pub(crate) mod io_structs {
                         face_verts = face.1.get_verts_mut();
                     }
                     io_face.verts.iter().try_for_each(|io_face_vert_index| {
-                        let vert_i = io_mesh
-                            .vert_pos_index_map
-                            .get(io_face_vert_index)
-                            .ok_or(ConversionError::NoElementInPosIndexMap(*io_face_vert_index))?;
+                        let vert_i = io_mesh.vert_pos_index_map.get(io_face_vert_index).ok_or(
+                            ConversionError::NoElementInPosIndexMap(
+                                Element::Vert,
+                                *io_face_vert_index,
+                            ),
+                        )?;
                         face_verts.push(mesh::VertIndex(verts.get_unknown_gen(*vert_i).unwrap().1));
                         Ok(())
                     })?;
