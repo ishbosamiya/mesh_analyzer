@@ -282,6 +282,18 @@ pub(crate) mod io_structs {
     }
 
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    pub struct FaceData {
+        face_data_str: String,
+        uv_area: f32,
+    }
+
+    impl FaceData {
+        pub fn get_uv_area(&self) -> f32 {
+            self.uv_area
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub struct EmptyExtraData {
         empty_extra_data_str: String,
     }
@@ -595,24 +607,17 @@ pub(crate) mod io_structs {
             Ok(mesh)
         }
     }
-
-    // pub type AdaptiveNode<END> = Node<NodeData<END>>;
-    // pub type AdaptiveVert = Vert<VertData>;
-    // pub type AdaptiveEdge = Edge<EdgeData>;
-    // pub type AdaptiveFace = Face<EmptyExtraData>;
-    // pub type AdaptiveMesh<END> = Mesh<NodeData<END>, VertData, EdgeData, EmptyExtraData>;
-    // pub type EmptyAdaptiveMesh = AdaptiveMesh<EmptyExtraData>;
 }
 
 pub type AdaptiveNode<END> = mesh::Node<io_structs::NodeData<END>>;
 pub type AdaptiveVert = mesh::Vert<io_structs::VertData>;
 pub type AdaptiveEdge = mesh::Edge<io_structs::EdgeData>;
-pub type AdaptiveFace = mesh::Face<io_structs::EmptyExtraData>;
+pub type AdaptiveFace = mesh::Face<io_structs::FaceData>;
 pub type AdaptiveMesh<END> = mesh::Mesh<
     io_structs::NodeData<END>,
     io_structs::VertData,
     io_structs::EdgeData,
-    io_structs::EmptyExtraData,
+    io_structs::FaceData,
 >;
 pub type EmptyAdaptiveMesh = AdaptiveMesh<io_structs::EmptyExtraData>;
 pub type ClothAdaptiveMesh = AdaptiveMesh<io_structs::ClothNodeData>;
@@ -640,7 +645,7 @@ pub trait AdaptiveMeshExtension<END> {
             io_structs::NodeData<END>,
             io_structs::VertData,
             io_structs::EdgeData,
-            io_structs::EmptyExtraData,
+            io_structs::FaceData,
         >,
         imm: &mut GPUImmediate,
     ) -> Result<(), MeshExtensionError>;
@@ -734,7 +739,7 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
             io_structs::NodeData<END>,
             io_structs::VertData,
             io_structs::EdgeData,
-            io_structs::EmptyExtraData,
+            io_structs::FaceData,
         >,
         imm: &mut GPUImmediate,
     ) -> Result<(), MeshExtensionError> {
@@ -875,7 +880,7 @@ pub trait ClothAdaptiveMeshExtension {
             io_structs::NodeData<io_structs::ClothNodeData>,
             io_structs::VertData,
             io_structs::EdgeData,
-            io_structs::EmptyExtraData,
+            io_structs::FaceData,
         >,
         imm: &mut GPUImmediate,
     ) -> Result<(), MeshExtensionError>;
@@ -888,7 +893,7 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
             io_structs::NodeData<io_structs::ClothNodeData>,
             io_structs::VertData,
             io_structs::EdgeData,
-            io_structs::EmptyExtraData,
+            io_structs::FaceData,
         >,
         imm: &mut GPUImmediate,
     ) -> Result<(), MeshExtensionError> {
@@ -1123,7 +1128,7 @@ impl DrawUI for ClothAdaptiveMesh {
         io_structs::NodeData<io_structs::ClothNodeData>,
         io_structs::VertData,
         io_structs::EdgeData,
-        io_structs::EmptyExtraData,
+        io_structs::FaceData,
     >;
 
     fn draw_ui(&self, extra_data: &Self::ExtraData, ui: &mut Ui) {
