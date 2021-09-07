@@ -252,6 +252,8 @@ pub struct Config<END, EVD, EED, EFD> {
     draw_edge_between_sewing_edges: bool,
     #[serde(default = "default_show_edge_data_flags")]
     show_edge_data_flags: bool,
+    #[serde(default = "default_show_edge_data")]
+    show_edge_data: bool,
 
     #[serde(skip)]
     element: Element,
@@ -436,6 +438,10 @@ fn default_show_edge_data_flags() -> bool {
     false
 }
 
+fn default_show_edge_data() -> bool {
+    false
+}
+
 fn default_aspect_ratio_min() -> f64 {
     0.1
 }
@@ -476,6 +482,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             draw_cloth_vertex_data: default_draw_cloth_vertex_data(),
             draw_edge_between_sewing_edges: default_draw_edge_between_sewing_edges(),
             show_edge_data_flags: default_show_edge_data_flags(),
+            show_edge_data: default_show_edge_data(),
 
             element: Element::Node,
             element_index: 0,
@@ -680,6 +687,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             "Draw Edge Between Sewing Edges",
         );
         ui.checkbox(&mut self.show_edge_data_flags, "Show Edge Data Flags");
+        ui.checkbox(&mut self.show_edge_data, "Show Edge Data");
 
         egui::ComboBox::from_label("Element Type")
             .selected_text(format!("{}", self.element))
@@ -844,6 +852,16 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                 if let Some(mesh) = mesh {
                     egui::ScrollArea::auto_sized().show(ui, |ui| {
                         mesh.draw_ui_edge_flags(ui);
+                    });
+                }
+            });
+
+        egui::Window::new("Edge Data")
+            .open(&mut self.show_edge_data)
+            .show(ui.ctx(), |ui| {
+                if let Some(mesh) = mesh {
+                    egui::ScrollArea::auto_sized().show(ui, |ui| {
+                        mesh.draw_ui_edge_data(ui);
                     });
                 }
             });
@@ -1308,6 +1326,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
     pub fn get_show_edge_data_flags(&self) -> bool {
         self.show_edge_data_flags
+    }
+
+    pub fn get_show_edge_data(&self) -> bool {
+        self.show_edge_data
     }
 
     pub fn get_element(&self) -> Element {

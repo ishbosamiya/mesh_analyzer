@@ -282,6 +282,17 @@ pub(crate) mod io_structs {
         }
     }
 
+    impl Display for EdgeData {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(
+                f,
+                "size: {:.2} flags: {}",
+                self.get_size(),
+                self.get_flags()
+            )
+        }
+    }
+
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub struct FaceData {
         face_data_str: String,
@@ -652,6 +663,7 @@ pub trait AdaptiveMeshExtension<END> {
     ) -> Result<(), MeshExtensionError>;
 
     fn draw_ui_edge_flags(&self, ui: &mut egui::Ui);
+    fn draw_ui_edge_data(&self, ui: &mut egui::Ui);
 }
 
 impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
@@ -864,6 +876,25 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
                             if EdgeDataFlags::is_edge_between_sewing_edges(data.get_flags()) {
                                 ui.label(format!("{}", EdgeDataFlags::EdgeBetweenSewingEdges));
                             }
+                        }
+                        None => {
+                            ui.label("No Extra Data");
+                        }
+                    }
+                });
+            });
+    }
+
+    fn draw_ui_edge_data(&self, ui: &mut egui::Ui) {
+        self.get_edges()
+            .iter()
+            .enumerate()
+            .for_each(|(i, (_, edge))| {
+                ui.horizontal(|ui| {
+                    ui.label(format!("{:05}", i));
+                    match &edge.extra_data {
+                        Some(data) => {
+                            ui.label(format!("{}", data));
                         }
                         None => {
                             ui.label("No Extra Data");
