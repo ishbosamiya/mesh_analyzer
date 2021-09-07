@@ -2,6 +2,7 @@ use quick_renderer::egui::{self, Ui};
 use quick_renderer::mesh::builtins::get_ico_sphere_subd_00;
 use quick_renderer::mesh::{
     apply_model_matrix_to_normal, apply_model_matrix_vec2, apply_model_matrix_vec3, MeshDrawData,
+    NodeIndex, VertIndex,
 };
 use quick_renderer::shader::builtins::get_smooth_color_3d_shader;
 use rmps::Deserializer;
@@ -1884,7 +1885,8 @@ impl<
                 .iter()
                 .filter(|(_, node)| node.normal.is_some())
                 .for_each(|(_, node)| {
-                    let normal_start_pos = node.pos;
+                    let normal_start_pos =
+                        apply_model_matrix_vec3(&node.pos, &mesh_3d_model_matrix);
 
                     let normal_start_pos: glm::Vec3 = glm::convert(normal_start_pos);
                     let normal_end_pos: glm::Vec3 = normal_start_pos
@@ -1893,6 +1895,126 @@ impl<
                                 &node.normal.unwrap(),
                                 &mesh_3d_model_matrix,
                             ) * config.get_node_normal_size(),
+                        );
+
+                    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                    imm.vertex_3f(
+                        pos_attr,
+                        normal_start_pos[0],
+                        normal_start_pos[1],
+                        normal_start_pos[2],
+                    );
+                    imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
+                    imm.vertex_3f(
+                        pos_attr,
+                        normal_end_pos[0],
+                        normal_end_pos[1],
+                        normal_end_pos[2],
+                    );
+                });
+
+            imm.end();
+        }
+
+        if config.get_draw_computed_node_normals() && !self.get_nodes().is_empty() {
+            let mut node_normals: HashMap<NodeIndex, glm::DVec3> = HashMap::new();
+            // The computation of the node normals
+            {
+                let mut vert_normal_weight: HashMap<VertIndex, glm::DVec3> = HashMap::new();
+                self.get_faces().iter().for_each(|(_, face)| {
+                    let mut prev_prev_v_index = face.get_verts()[face.get_verts().len() - 2];
+                    let mut prev_v_index = face.get_verts()[face.get_verts().len() - 1];
+                    face.get_verts().iter().for_each(|curr_v_index| {
+                        let curr_v = self.get_vert(*curr_v_index).unwrap();
+                        let curr_n = self.get_node(curr_v.get_node().unwrap()).unwrap();
+                        let curr_pos = curr_n.pos;
+
+                        let prev_v = self.get_vert(prev_v_index).unwrap();
+                        let prev_n = self.get_node(prev_v.get_node().unwrap()).unwrap();
+                        let prev_pos = prev_n.pos;
+
+                        let prev_prev_v = self.get_vert(prev_prev_v_index).unwrap();
+                        let prev_prev_n = self.get_node(prev_prev_v.get_node().unwrap()).unwrap();
+                        let prev_prev_pos = prev_prev_n.pos;
+
+                        let prev_e_vec = (prev_prev_pos - prev_pos).normalize();
+                        let curr_e_vec = (prev_pos - curr_pos).normalize();
+
+                        let factor = (-glm::dot(&curr_e_vec, &prev_e_vec)).acos();
+
+                        let vert_normal = vert_normal_weight
+                            .entry(prev_v_index)
+                            .or_insert_with(glm::zero);
+                        *vert_normal += face.normal.unwrap() * factor;
+
+                        prev_prev_v_index = prev_v_index;
+                        prev_v_index = *curr_v_index;
+                    });
+                });
+
+                self.get_nodes().iter().for_each(|(_, node)| {
+                    let normal = node
+                        .get_verts()
+                        .iter()
+                        .map(|vert_index| {
+                            vert_normal_weight
+                                .get(vert_index)
+                                .copied()
+                                .unwrap_or_else(glm::zero)
+                        })
+                        .fold(glm::zero(), |acc: glm::DVec3, weighted_normal| {
+                            acc + weighted_normal
+                        })
+                        .normalize();
+                    node_normals.insert(node.get_self_index(), normal);
+                });
+            }
+
+            let mesh_3d_model_matrix = config.get_mesh_transform().get_matrix();
+
+            let color: glm::Vec4 = glm::convert(config.get_computed_node_normal_color());
+
+            let smooth_color_3d_shader = shader::builtins::get_smooth_color_3d_shader()
+                .as_ref()
+                .unwrap();
+
+            smooth_color_3d_shader.use_shader();
+            smooth_color_3d_shader.set_mat4("model\0", &glm::identity());
+
+            let format = imm.get_cleared_vertex_format();
+            let pos_attr = format.add_attribute(
+                "in_pos\0".to_string(),
+                GPUVertCompType::F32,
+                3,
+                GPUVertFetchMode::Float,
+            );
+            let color_attr = format.add_attribute(
+                "in_color\0".to_string(),
+                GPUVertCompType::F32,
+                4,
+                GPUVertFetchMode::Float,
+            );
+
+            imm.begin_at_most(
+                GPUPrimType::Lines,
+                self.get_nodes().len() * 2,
+                smooth_color_3d_shader,
+            );
+
+            self.get_nodes()
+                .iter()
+                .filter(|(_, node)| node.normal.is_some())
+                .for_each(|(_, node)| {
+                    let normal_start_pos =
+                        apply_model_matrix_vec3(&node.pos, &mesh_3d_model_matrix);
+
+                    let normal_start_pos: glm::Vec3 = glm::convert(normal_start_pos);
+                    let normal_end_pos: glm::Vec3 = normal_start_pos
+                        + glm::convert::<_, glm::Vec3>(
+                            apply_model_matrix_to_normal(
+                                node_normals.get(&node.get_self_index()).unwrap(),
+                                &mesh_3d_model_matrix,
+                            ) * config.get_computed_node_normal_size(),
                         );
 
                     imm.attr_4f(color_attr, color[0], color[1], color[2], color[3]);
