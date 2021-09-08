@@ -1133,10 +1133,18 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
             * (1.0
                 / (params.get_change_in_vertex_normal_max()
                     * params.get_change_in_vertex_normal_max()));
-
-        let q_and_lambda_hat = m_hat.symmetric_eigen();
-        let q = q_and_lambda_hat.eigenvectors;
-        let lambda_hat = q_and_lambda_hat.eigenvalues;
+        let eigen_type = 1;
+        let q;
+        let lambda_hat;
+        if eigen_type == 0 {
+            let q_and_lambda_hat = m_hat.symmetric_eigen();
+            q = q_and_lambda_hat.eigenvectors;
+            lambda_hat = q_and_lambda_hat.eigenvalues;
+        } else {
+            let q_and_lambda_hat = mat2x2_eigen_decomposition(&m_hat);
+            q = q_and_lambda_hat.0;
+            lambda_hat = q_and_lambda_hat.1;
+        }
 
         let lambda_tilda = glm::clamp(
             &lambda_hat,
@@ -1244,6 +1252,32 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
                 });
             });
     }
+}
+
+#[allow(clippy::many_single_char_names)]
+fn mat2x2_eigen_decomposition(mat: &glm::DMat2x2) -> (glm::DMat2x2, glm::DVec2) {
+    let a = mat.column(0)[0];
+    let b = mat.column(1)[0];
+    let c = mat.column(0)[1];
+    let d = mat.column(1)[1];
+
+    let trace = a + d;
+    let det = a * d - b * c;
+
+    let l1 = (trace + (trace * trace - 4.0 * det).sqrt()) / 2.0;
+    let l2 = (trace - (trace * trace - 4.0 * det).sqrt()) / 2.0;
+
+    let lambda = glm::vec2(l1, l2);
+
+    let q;
+    if c != 0.0 {
+        q = glm::mat2x2(l1 - d, l2 - d, c, c);
+    } else if b != 0.0 {
+        q = glm::mat2x2(b, b, l1 - a, l2 - a);
+    } else {
+        q = glm::mat2x2(1.0, 0.0, 0.0, 1.0);
+    }
+    (q, lambda)
 }
 
 pub trait ClothAdaptiveMeshExtension {
