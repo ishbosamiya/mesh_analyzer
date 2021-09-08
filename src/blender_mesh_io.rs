@@ -676,6 +676,12 @@ pub struct AdaptiveRemeshParams {
     change_in_vertex_normal_max: f64,
 }
 
+impl Default for AdaptiveRemeshParams {
+    fn default() -> Self {
+        Self::new(0.05, 0.5, 0.2, 0.3)
+    }
+}
+
 impl AdaptiveRemeshParams {
     pub fn new(
         edge_length_min: f64,
@@ -721,6 +727,48 @@ impl AdaptiveRemeshParams {
 
     pub fn get_change_in_vertex_normal_max_mut(&mut self) -> &mut f64 {
         &mut self.change_in_vertex_normal_max
+    }
+}
+
+impl DrawUI for AdaptiveRemeshParams {
+    type ExtraData = ();
+
+    fn draw_ui(&self, _extra_data: &Self::ExtraData, ui: &mut egui::Ui) {
+        ui.label(format!(
+            "Minimum Edge Length: {}",
+            self.get_edge_length_min()
+        ));
+        ui.label(format!(
+            "Maximum Edge Length: {}",
+            self.get_edge_length_max()
+        ));
+        ui.label(format!(
+            "Minimum Aspect Ratio: {}",
+            self.get_aspect_ratio_min()
+        ));
+        ui.label(format!(
+            "Maximum Change in Vertex Normal: {}",
+            self.get_change_in_vertex_normal_max()
+        ));
+    }
+
+    fn draw_ui_edit(&mut self, _extra_data: &Self::ExtraData, ui: &mut egui::Ui) {
+        ui.add(
+            egui::Slider::new(self.get_edge_length_min_mut(), 0.0..=1.0)
+                .text("Minimum Edge Length"),
+        );
+        ui.add(
+            egui::Slider::new(self.get_edge_length_max_mut(), 0.0..=1.0)
+                .text("Maximum Edge Length"),
+        );
+        ui.add(
+            egui::Slider::new(self.get_aspect_ratio_min_mut(), 0.0..=1.0)
+                .text("Minimum Aspect Ratio"),
+        );
+        ui.add(
+            egui::Slider::new(self.get_change_in_vertex_normal_max_mut(), 0.0..=1.0)
+                .text("Maximum Change in Vertex Normal"),
+        );
     }
 }
 
@@ -781,6 +829,24 @@ impl FaceSizingExtra {
 
     pub fn get_m(&self) -> glm::DMat2x2 {
         self.m
+    }
+}
+
+impl DrawUI for FaceSizingExtra {
+    type ExtraData = ();
+
+    fn draw_ui(&self, _extra_data: &Self::ExtraData, ui: &mut egui::Ui) {
+        ui.label(format!("m_curv: {}", self.m_curv));
+        ui.label(format!("m_hat: {}", self.m_hat));
+        ui.label(format!("q: {}", self.q));
+        ui.label(format!("lambda_hat: {}", self.lambda_hat));
+        ui.label(format!("lambda_tilda: {}", self.lambda_tilda));
+        ui.label(format!("lambda_tilda_max: {}", self.lambda_tilda_max));
+        ui.label(format!("m: {}", self.m));
+    }
+
+    fn draw_ui_edit(&mut self, _extra_data: &Self::ExtraData, _ui: &mut egui::Ui) {
+        unreachable!()
     }
 }
 

@@ -9,7 +9,9 @@ use quick_renderer::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    blender_mesh_io::{AdaptiveMeshExtension, MeshExtensionError, MeshToBlenderMeshIndexMap},
+    blender_mesh_io::{
+        AdaptiveMeshExtension, AdaptiveRemeshParams, MeshExtensionError, MeshToBlenderMeshIndexMap,
+    },
     draw_ui::DrawUI,
     math::{self, Transform},
     prelude::MeshExtension,
@@ -256,6 +258,10 @@ pub struct Config<END, EVD, EED, EFD> {
     show_edge_data_flags: bool,
     #[serde(default = "default_show_edge_data")]
     show_edge_data: bool,
+    #[serde(default = "default_show_computed_face_sizing")]
+    show_computed_face_sizing: bool,
+    #[serde(default = "default_modify_adaptive_remesh_params")]
+    modify_adaptive_remesh_params: bool,
 
     #[serde(skip)]
     element: Element,
@@ -309,6 +315,8 @@ pub struct Config<END, EVD, EED, EFD> {
     normal_pull_factor: f64,
     #[serde(default = "default_aspect_ratio_min")]
     aspect_ratio_min: f64,
+    #[serde(default = "default_adaptive_remesh_params")]
+    adaptive_remesh_params: AdaptiveRemeshParams,
 
     #[serde(default = "default_aspect_ratio_metric")]
     aspect_ratio_metric: AspectRatioMetric,
@@ -448,8 +456,20 @@ fn default_show_edge_data() -> bool {
     false
 }
 
+fn default_show_computed_face_sizing() -> bool {
+    false
+}
+
+fn default_modify_adaptive_remesh_params() -> bool {
+    false
+}
+
 fn default_aspect_ratio_min() -> f64 {
     0.1
+}
+
+fn default_adaptive_remesh_params() -> AdaptiveRemeshParams {
+    Default::default()
 }
 
 fn default_aspect_ratio_metric() -> AspectRatioMetric {
@@ -490,6 +510,8 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             show_vert_data: default_show_vert_data(),
             show_edge_data_flags: default_show_edge_data_flags(),
             show_edge_data: default_show_edge_data(),
+            show_computed_face_sizing: default_show_computed_face_sizing(),
+            modify_adaptive_remesh_params: default_modify_adaptive_remesh_params(),
 
             element: Element::Node,
             element_index: 0,
@@ -527,6 +549,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             node_normal_size: default_node_normal_size(),
             computed_node_normal_size: default_computed_node_normal_size(),
             aspect_ratio_min: default_aspect_ratio_min(),
+            adaptive_remesh_params: default_adaptive_remesh_params(),
 
             aspect_ratio_metric: default_aspect_ratio_metric(),
             cloth_vertex_elements: default_cloth_vertex_elements(),
@@ -696,6 +719,14 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
         ui.checkbox(&mut self.show_vert_data, "Show Vert Data");
         ui.checkbox(&mut self.show_edge_data_flags, "Show Edge Data Flags");
         ui.checkbox(&mut self.show_edge_data, "Show Edge Data");
+        ui.checkbox(
+            &mut self.show_computed_face_sizing,
+            "Show Computed Face Sizing",
+        );
+        ui.checkbox(
+            &mut self.modify_adaptive_remesh_params,
+            "Modify Adaptive Remesh Params",
+        );
 
         egui::ComboBox::from_label("Element Type")
             .selected_text(format!("{}", self.element))
@@ -884,6 +915,51 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                 }
             });
 
+        let mut show_computed_face_sizing = self.show_computed_face_sizing;
+        egui::Window::new("Computed Face Sizing")
+            .open(&mut show_computed_face_sizing)
+            .show(ui.ctx(), |ui| {
+                self.adaptive_remesh_params.draw_ui(&(), ui);
+                ui.separator();
+                if let Some(mesh) = mesh {
+                    egui::ScrollArea::auto_sized().show(ui, |ui| match self.get_element() {
+                        Element::Face => {
+                            let face = mesh.get_faces().get_unknown_gen(self.get_element_index());
+                            match face {
+                                Some(face) => {
+                                    let sizing = mesh.compute_dynamic_face_sizing(
+                                        &self.adaptive_remesh_params,
+                                        face.0,
+                                    );
+                                    match sizing {
+                                        Ok(sizing) => {
+                                            sizing.draw_ui(&(), ui);
+                                        }
+                                        Err(err) => {
+                                            ui.label(format!("{}", err));
+                                        }
+                                    }
+                                }
+                                None => {
+                                    ui.label(format!(
+                                        "{}",
+                                        MeshExtensionError::NoElementAtIndex(
+                                            self.get_element_index()
+                                        )
+                                    ));
+                                }
+                            }
+                        }
+                        _ => {
+                            ui.label("Face is not selected");
+                        }
+                    });
+                } else {
+                    ui.label("No Mesh Loaded");
+                }
+            });
+        self.show_computed_face_sizing = show_computed_face_sizing;
+
         color_edit_button_dvec4(ui, "Fancy Node Color", &mut self.node_color);
         color_edit_button_dvec4(ui, "Fancy Vert Color", &mut self.vert_color);
         color_edit_button_dvec4(
@@ -942,6 +1018,14 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
         ui.add(
             egui::Slider::new(&mut self.aspect_ratio_min, 0.0..=1.0).text("Aspect Ratio Minimum"),
         );
+
+        let mut modify_adaptive_remesh_params = self.modify_adaptive_remesh_params;
+        egui::Window::new("Adaptive Remesh Params")
+            .open(&mut modify_adaptive_remesh_params)
+            .show(ui.ctx(), |ui| {
+                self.adaptive_remesh_params.draw_ui_edit(&(), ui);
+            });
+        self.modify_adaptive_remesh_params = modify_adaptive_remesh_params;
 
         egui::ComboBox::from_label("Aspect Ratio Metric")
             .selected_text(format!("{}", self.aspect_ratio_metric))
@@ -1354,6 +1438,14 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
         self.show_edge_data
     }
 
+    pub fn get_show_computed_face_sizing(&self) -> bool {
+        self.show_computed_face_sizing
+    }
+
+    pub fn get_modify_adaptive_remesh_params(&self) -> bool {
+        self.modify_adaptive_remesh_params
+    }
+
     pub fn get_element(&self) -> Element {
         self.element
     }
@@ -1460,6 +1552,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
     pub fn get_aspect_ratio_min(&self) -> f64 {
         self.aspect_ratio_min
+    }
+
+    pub fn get_adaptive_remesh_params(&self) -> &AdaptiveRemeshParams {
+        &self.adaptive_remesh_params
     }
 
     pub fn get_aspect_ratio_metric(&self) -> AspectRatioMetric {
