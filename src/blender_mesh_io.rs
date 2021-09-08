@@ -233,6 +233,19 @@ pub(crate) mod io_structs {
         }
     }
 
+    impl Display for Sizing {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(
+                f,
+                "{:.2} {:.2} {:.2} {:.2}",
+                self.get_m().m00,
+                self.get_m().m01,
+                self.get_m().m10,
+                self.get_m().m11
+            )
+        }
+    }
+
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub struct VertData {
         vert_data_str: String,
@@ -243,6 +256,16 @@ pub(crate) mod io_structs {
     impl VertData {
         pub fn get_sizing(&self) -> &Sizing {
             &self.sizing
+        }
+
+        pub fn get_flag(&self) -> i32 {
+            self.flag
+        }
+    }
+
+    impl Display for VertData {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "sizing: {} flag: {}", self.get_sizing(), self.get_flag())
         }
     }
 
@@ -662,6 +685,8 @@ pub trait AdaptiveMeshExtension<END> {
         imm: &mut GPUImmediate,
     ) -> Result<(), MeshExtensionError>;
 
+    fn draw_ui_vert_data(&self, ui: &mut egui::Ui);
+
     fn draw_ui_edge_flags(&self, ui: &mut egui::Ui);
     fn draw_ui_edge_data(&self, ui: &mut egui::Ui);
 }
@@ -844,6 +869,25 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
         let (v1, v2) = self.get_checked_verts_of_edge(edge, false);
 
         self.compute_edge_size_sq_from_v1_v2(v1, v2)
+    }
+
+    fn draw_ui_vert_data(&self, ui: &mut egui::Ui) {
+        self.get_verts()
+            .iter()
+            .enumerate()
+            .for_each(|(i, (_, vert))| {
+                ui.horizontal(|ui| {
+                    ui.label(format!("{:05}", i));
+                    match &vert.extra_data {
+                        Some(data) => {
+                            ui.label(format!("{}", data));
+                        }
+                        None => {
+                            ui.label("No Extra Data");
+                        }
+                    }
+                });
+            });
     }
 
     fn draw_ui_edge_flags(&self, ui: &mut egui::Ui) {
