@@ -724,6 +724,66 @@ impl AdaptiveRemeshParams {
     }
 }
 
+pub struct FaceSizingExtra {
+    m_curv: glm::DMat2x2,
+    m_hat: glm::DMat2x2,
+    q: glm::DMat2x2,
+    lambda_hat: glm::DVec2,
+    lambda_tilda: glm::DVec2,
+    lambda_tilda_max: f64,
+    m: glm::DMat2x2,
+}
+
+impl FaceSizingExtra {
+    pub fn new(
+        m_curv: glm::DMat2x2,
+        m_hat: glm::DMat2x2,
+        q: glm::DMat2x2,
+        lambda_hat: glm::DVec2,
+        lambda_tilda: glm::DVec2,
+        lambda_tilda_max: f64,
+        m: glm::DMat2x2,
+    ) -> Self {
+        Self {
+            m_curv,
+            m_hat,
+            q,
+            lambda_hat,
+            lambda_tilda,
+            lambda_tilda_max,
+            m,
+        }
+    }
+
+    pub fn get_m_curv(&self) -> glm::DMat2x2 {
+        self.m_curv
+    }
+
+    pub fn get_m_hat(&self) -> glm::DMat2x2 {
+        self.m_hat
+    }
+
+    pub fn get_q(&self) -> glm::DMat2x2 {
+        self.q
+    }
+
+    pub fn get_lambda_hat(&self) -> glm::DVec2 {
+        self.lambda_hat
+    }
+
+    pub fn get_lambda_tilda(&self) -> glm::DVec2 {
+        self.lambda_tilda
+    }
+
+    pub fn get_lambda_tilda_max(&self) -> f64 {
+        self.lambda_tilda_max
+    }
+
+    pub fn get_m(&self) -> glm::DMat2x2 {
+        self.m
+    }
+}
+
 pub trait AdaptiveMeshExtension<END> {
     fn is_edge_flippable_anisotropic_aware(
         &self,
@@ -756,7 +816,7 @@ pub trait AdaptiveMeshExtension<END> {
         &self,
         params: &AdaptiveRemeshParams,
         face: &AdaptiveFace,
-    ) -> Result<io_structs::Sizing, MeshExtensionError>;
+    ) -> Result<FaceSizingExtra, MeshExtensionError>;
 
     fn draw_ui_vert_data(&self, ui: &mut egui::Ui);
 
@@ -948,7 +1008,7 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
         &self,
         params: &AdaptiveRemeshParams,
         face: &AdaptiveFace,
-    ) -> Result<io_structs::Sizing, MeshExtensionError> {
+    ) -> Result<FaceSizingExtra, MeshExtensionError> {
         if face.get_verts().len() != 3 {
             return Err(MeshExtensionError::FaceNotTriangulated(
                 face.get_self_index(),
@@ -1008,12 +1068,12 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
                 / (params.get_change_in_vertex_normal_max()
                     * params.get_change_in_vertex_normal_max()));
 
-        let q_and_lambda = m_hat.symmetric_eigen();
-        let q = q_and_lambda.eigenvectors;
-        let lambda = q_and_lambda.eigenvalues;
+        let q_and_lambda_hat = m_hat.symmetric_eigen();
+        let q = q_and_lambda_hat.eigenvectors;
+        let lambda_hat = q_and_lambda_hat.eigenvalues;
 
         let lambda_tilda = glm::clamp(
-            &lambda,
+            &lambda_hat,
             1.0 / (params.get_edge_length_max() * params.get_edge_length_max()),
             1.0 / (params.get_edge_length_min() * params.get_edge_length_min()),
         );
@@ -1031,9 +1091,15 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
 
         let m = q * glm::diagonal2x2(&lambda) * q.transpose();
 
-        let m: glm::Mat2x2 = glm::convert(m);
-
-        Ok(io_structs::Sizing::new(m.into()))
+        Ok(FaceSizingExtra::new(
+            m_crv,
+            m_hat,
+            q,
+            lambda_hat,
+            lambda_tilda,
+            lambda_tilda_max,
+            m,
+        ))
     }
 
     fn draw_ui_vert_data(&self, ui: &mut egui::Ui) {
