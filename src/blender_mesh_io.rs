@@ -1,8 +1,8 @@
 use quick_renderer::egui::{self, Ui};
 use quick_renderer::mesh::builtins::get_ico_sphere_subd_00;
 use quick_renderer::mesh::{
-    apply_model_matrix_to_normal, apply_model_matrix_vec2, apply_model_matrix_vec3, MeshDrawData,
-    NodeIndex, VertIndex,
+    apply_model_matrix_to_normal, apply_model_matrix_vec2, apply_model_matrix_vec3, FaceIndex,
+    MeshDrawData, NodeIndex, VertIndex,
 };
 use quick_renderer::shader::builtins::get_smooth_color_3d_shader;
 use rmps::Deserializer;
@@ -95,6 +95,17 @@ pub(crate) mod io_structs {
     impl From<Float2x2> for glm::Mat2 {
         fn from(f: Float2x2) -> Self {
             glm::mat2(f.m00, f.m01, f.m10, f.m11)
+        }
+    }
+
+    impl From<glm::Mat2> for Float2x2 {
+        fn from(f: glm::Mat2) -> Self {
+            Self {
+                m00: f.column(0)[0],
+                m01: f.column(0)[1],
+                m10: f.column(1)[0],
+                m11: f.column(1)[1],
+            }
         }
     }
 
@@ -657,6 +668,62 @@ pub type AdaptiveMesh<END> = mesh::Mesh<
 pub type EmptyAdaptiveMesh = AdaptiveMesh<io_structs::EmptyExtraData>;
 pub type ClothAdaptiveMesh = AdaptiveMesh<io_structs::ClothNodeData>;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdaptiveRemeshParams {
+    edge_length_min: f64,
+    edge_length_max: f64,
+    aspect_ratio_min: f64,
+    change_in_vertex_normal_max: f64,
+}
+
+impl AdaptiveRemeshParams {
+    pub fn new(
+        edge_length_min: f64,
+        edge_length_max: f64,
+        aspect_ratio_min: f64,
+        change_in_vertex_normal_max: f64,
+    ) -> Self {
+        Self {
+            edge_length_min,
+            edge_length_max,
+            aspect_ratio_min,
+            change_in_vertex_normal_max,
+        }
+    }
+
+    pub fn get_edge_length_min(&self) -> f64 {
+        self.edge_length_min
+    }
+
+    pub fn get_edge_length_max(&self) -> f64 {
+        self.edge_length_max
+    }
+
+    pub fn get_aspect_ratio_min(&self) -> f64 {
+        self.aspect_ratio_min
+    }
+
+    pub fn get_change_in_vertex_normal_max(&self) -> f64 {
+        self.change_in_vertex_normal_max
+    }
+
+    pub fn get_edge_length_min_mut(&mut self) -> &mut f64 {
+        &mut self.edge_length_min
+    }
+
+    pub fn get_edge_length_max_mut(&mut self) -> &mut f64 {
+        &mut self.edge_length_max
+    }
+
+    pub fn get_aspect_ratio_min_mut(&mut self) -> &mut f64 {
+        &mut self.aspect_ratio_min
+    }
+
+    pub fn get_change_in_vertex_normal_max_mut(&mut self) -> &mut f64 {
+        &mut self.change_in_vertex_normal_max
+    }
+}
+
 pub trait AdaptiveMeshExtension<END> {
     fn is_edge_flippable_anisotropic_aware(
         &self,
@@ -684,6 +751,12 @@ pub trait AdaptiveMeshExtension<END> {
         >,
         imm: &mut GPUImmediate,
     ) -> Result<(), MeshExtensionError>;
+
+    fn compute_dynamic_face_sizing(
+        &self,
+        params: &AdaptiveRemeshParams,
+        face: &AdaptiveFace,
+    ) -> Result<io_structs::Sizing, MeshExtensionError>;
 
     fn draw_ui_vert_data(&self, ui: &mut egui::Ui);
 
@@ -869,6 +942,98 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
         let (v1, v2) = self.get_checked_verts_of_edge(edge, false);
 
         self.compute_edge_size_sq_from_v1_v2(v1, v2)
+    }
+
+    fn compute_dynamic_face_sizing(
+        &self,
+        params: &AdaptiveRemeshParams,
+        face: &AdaptiveFace,
+    ) -> Result<io_structs::Sizing, MeshExtensionError> {
+        if face.get_verts().len() != 3 {
+            return Err(MeshExtensionError::FaceNotTriangulated(
+                face.get_self_index(),
+            ));
+        }
+
+        let calculate_derivative =
+            |face: &AdaptiveFace, f1: &glm::DVec3, f2: &glm::DVec3, f3: &glm::DVec3| {
+                let uv1 = self.get_vert(face.get_verts()[0]).unwrap().uv.unwrap();
+                let uv2 = self.get_vert(face.get_verts()[1]).unwrap().uv.unwrap();
+                let uv3 = self.get_vert(face.get_verts()[2]).unwrap().uv.unwrap();
+
+                let d_uv = glm::DMat2x2::from_columns(&[uv2 - uv1, uv3 - uv1]);
+                let d_uv_inv = d_uv.try_inverse().unwrap();
+
+                glm::DMat3x2::from_columns(&[f2 - f1, f3 - f1]) * d_uv_inv
+            };
+
+        let n1 = self
+            .get_node(
+                self.get_vert(face.get_verts()[0])
+                    .unwrap()
+                    .get_node()
+                    .unwrap(),
+            )
+            .unwrap();
+        let n2 = self
+            .get_node(
+                self.get_vert(face.get_verts()[1])
+                    .unwrap()
+                    .get_node()
+                    .unwrap(),
+            )
+            .unwrap();
+        let n3 = self
+            .get_node(
+                self.get_vert(face.get_verts()[2])
+                    .unwrap()
+                    .get_node()
+                    .unwrap(),
+            )
+            .unwrap();
+
+        let jacobian_normal = calculate_derivative(
+            face,
+            &n1.normal.unwrap(),
+            &n2.normal.unwrap(),
+            &n3.normal.unwrap(),
+        );
+
+        let jacobian_normal_transpose = jacobian_normal.transpose();
+
+        let m_crv = jacobian_normal_transpose * jacobian_normal;
+
+        let m_hat = m_crv
+            * (1.0
+                / (params.get_change_in_vertex_normal_max()
+                    * params.get_change_in_vertex_normal_max()));
+
+        let q_and_lambda = m_hat.symmetric_eigen();
+        let q = q_and_lambda.eigenvectors;
+        let lambda = q_and_lambda.eigenvalues;
+
+        let lambda_tilda = glm::clamp(
+            &lambda,
+            1.0 / (params.get_edge_length_max() * params.get_edge_length_max()),
+            1.0 / (params.get_edge_length_min() * params.get_edge_length_min()),
+        );
+
+        let lambda_tilda_max = lambda_tilda[0].max(lambda_tilda[1]);
+
+        let lambda = glm::vec2(
+            lambda_tilda[0].max(
+                params.get_aspect_ratio_min() * params.get_aspect_ratio_min() * lambda_tilda_max,
+            ),
+            lambda_tilda[1].max(
+                params.get_aspect_ratio_min() * params.get_aspect_ratio_min() * lambda_tilda_max,
+            ),
+        );
+
+        let m = q * glm::diagonal2x2(&lambda) * q.transpose();
+
+        let m: glm::Mat2x2 = glm::convert(m);
+
+        Ok(io_structs::Sizing::new(m.into()))
     }
 
     fn draw_ui_vert_data(&self, ui: &mut egui::Ui) {
@@ -2296,6 +2461,7 @@ pub enum MeshExtensionError {
     NoExtraData,
     ConversionFailed(ConversionError),
     UnknownMeshType,
+    FaceNotTriangulated(FaceIndex),
 }
 
 impl std::error::Error for MeshExtensionError {}
@@ -2326,6 +2492,9 @@ impl Display for MeshExtensionError {
             }
             MeshExtensionError::UnknownMeshType => {
                 write!(f, "Unknown mesh type")
+            }
+            MeshExtensionError::FaceNotTriangulated(index) => {
+                write!(f, "Face {:?} not triangulated", index)
             }
         }
     }
