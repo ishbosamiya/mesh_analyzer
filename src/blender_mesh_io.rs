@@ -1088,7 +1088,7 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
                 let uv3 = self.get_vert(face.get_verts()[2]).unwrap().uv.unwrap();
 
                 let d_uv = glm::DMat2x2::from_columns(&[uv2 - uv1, uv3 - uv1]);
-                let d_uv_inv = d_uv.try_inverse().unwrap();
+                let d_uv_inv = glm::inverse(&d_uv);
 
                 glm::DMat3x2::from_columns(&[f2 - f1, f3 - f1]) * d_uv_inv
             };
