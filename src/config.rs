@@ -9,9 +9,7 @@ use quick_renderer::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    blender_mesh_io::{
-        AdaptiveMeshExtension, AdaptiveRemeshParams, MeshExtensionError, MeshToBlenderMeshIndexMap,
-    },
+    blender_mesh_io::{AdaptiveMeshExtension, MeshExtensionError, MeshToBlenderMeshIndexMap},
     draw_ui::DrawUI,
     math::{self, Transform},
     prelude::MeshExtension,
@@ -212,6 +210,134 @@ impl LoadedMesh {
 
     pub fn get_location(&self) -> &str {
         &self.location
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdaptiveRemeshParams {
+    edge_length_min: f64,
+    edge_length_max: f64,
+    aspect_ratio_min: f64,
+    change_in_vertex_normal_max: f64,
+    #[serde(default = "default_change_in_vertex_velocity_max")]
+    change_in_vertex_velocity_max: f64,
+}
+
+fn default_change_in_vertex_velocity_max() -> f64 {
+    0.3
+}
+
+impl Default for AdaptiveRemeshParams {
+    fn default() -> Self {
+        Self::new(0.05, 0.5, 0.2, 0.3, default_change_in_vertex_velocity_max())
+    }
+}
+
+impl AdaptiveRemeshParams {
+    pub fn new(
+        edge_length_min: f64,
+        edge_length_max: f64,
+        aspect_ratio_min: f64,
+        change_in_vertex_normal_max: f64,
+        change_in_vertex_velocity_max: f64,
+    ) -> Self {
+        Self {
+            edge_length_min,
+            edge_length_max,
+            aspect_ratio_min,
+            change_in_vertex_normal_max,
+            change_in_vertex_velocity_max,
+        }
+    }
+
+    pub fn get_edge_length_min(&self) -> f64 {
+        self.edge_length_min
+    }
+
+    pub fn get_edge_length_max(&self) -> f64 {
+        self.edge_length_max
+    }
+
+    pub fn get_aspect_ratio_min(&self) -> f64 {
+        self.aspect_ratio_min
+    }
+
+    pub fn get_change_in_vertex_normal_max(&self) -> f64 {
+        self.change_in_vertex_normal_max
+    }
+
+    pub fn get_change_in_vertex_velocity_max(&self) -> f64 {
+        self.change_in_vertex_velocity_max
+    }
+
+    pub fn get_edge_length_min_mut(&mut self) -> &mut f64 {
+        &mut self.edge_length_min
+    }
+
+    pub fn get_edge_length_max_mut(&mut self) -> &mut f64 {
+        &mut self.edge_length_max
+    }
+
+    pub fn get_aspect_ratio_min_mut(&mut self) -> &mut f64 {
+        &mut self.aspect_ratio_min
+    }
+
+    pub fn get_change_in_vertex_normal_max_mut(&mut self) -> &mut f64 {
+        &mut self.change_in_vertex_normal_max
+    }
+
+    pub fn get_change_in_vertex_velocity_max_mut(&mut self) -> &mut f64 {
+        &mut self.change_in_vertex_velocity_max
+    }
+}
+
+impl DrawUI for AdaptiveRemeshParams {
+    type ExtraData = ();
+
+    fn draw_ui(&self, _extra_data: &Self::ExtraData, ui: &mut egui::Ui) {
+        ui.label(format!(
+            "Minimum Edge Length: {}",
+            self.get_edge_length_min()
+        ));
+        ui.label(format!(
+            "Maximum Edge Length: {}",
+            self.get_edge_length_max()
+        ));
+        ui.label(format!(
+            "Minimum Aspect Ratio: {}",
+            self.get_aspect_ratio_min()
+        ));
+        ui.label(format!(
+            "Maximum Change in Vertex Normal: {}",
+            self.get_change_in_vertex_normal_max()
+        ));
+        ui.label(format!(
+            "Maximum Change in Vertex Velocity: {}",
+            self.get_change_in_vertex_velocity_max()
+        ));
+    }
+
+    fn draw_ui_edit(&mut self, _extra_data: &Self::ExtraData, ui: &mut egui::Ui) {
+        ui.add(
+            egui::Slider::new(self.get_edge_length_min_mut(), 0.0..=1.0)
+                .text("Minimum Edge Length"),
+        );
+        ui.add(
+            egui::Slider::new(self.get_edge_length_max_mut(), 0.0..=1.0)
+                .text("Maximum Edge Length"),
+        );
+        ui.add(
+            egui::Slider::new(self.get_aspect_ratio_min_mut(), 0.0..=1.0)
+                .text("Minimum Aspect Ratio"),
+        );
+        ui.add(
+            egui::Slider::new(self.get_change_in_vertex_normal_max_mut(), 0.0..=1.0)
+                .text("Maximum Change in Vertex Normal"),
+        );
+        ui.add(
+            egui::Slider::new(self.get_change_in_vertex_velocity_max_mut(), 0.0..=1.0)
+                .text("Maximum Change in Vertex Velocity"),
+        );
     }
 }
 
