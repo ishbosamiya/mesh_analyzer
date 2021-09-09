@@ -252,6 +252,8 @@ pub struct Config<END, EVD, EED, EFD> {
     draw_cloth_vertex_data: bool,
     #[serde(default = "default_draw_edge_between_sewing_edges")]
     draw_edge_between_sewing_edges: bool,
+    #[serde(default = "default_show_node_data")]
+    show_node_data: bool,
     #[serde(default = "default_show_vert_data")]
     show_vert_data: bool,
     #[serde(default = "default_show_edge_data_flags")]
@@ -444,6 +446,10 @@ fn default_draw_edge_between_sewing_edges() -> bool {
     false
 }
 
+fn default_show_node_data() -> bool {
+    false
+}
+
 fn default_show_vert_data() -> bool {
     false
 }
@@ -507,6 +513,7 @@ impl<END, EVD, EED, EFD> Default for Config<END, EVD, EED, EFD> {
             draw_faces_violating_aspect_ratio: default_draw_faces_violating_aspect_ratio(),
             draw_cloth_vertex_data: default_draw_cloth_vertex_data(),
             draw_edge_between_sewing_edges: default_draw_edge_between_sewing_edges(),
+            show_node_data: default_show_node_data(),
             show_vert_data: default_show_vert_data(),
             show_edge_data_flags: default_show_edge_data_flags(),
             show_edge_data: default_show_edge_data(),
@@ -716,6 +723,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             &mut self.draw_edge_between_sewing_edges,
             "Draw Edge Between Sewing Edges",
         );
+        ui.checkbox(&mut self.show_node_data, "Show Node Data");
         ui.checkbox(&mut self.show_vert_data, "Show Vert Data");
         ui.checkbox(&mut self.show_edge_data_flags, "Show Edge Data Flags");
         ui.checkbox(&mut self.show_edge_data, "Show Edge Data");
@@ -883,6 +891,16 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                         }
                     }
                 });
+            });
+
+        egui::Window::new("Node Data")
+            .open(&mut self.show_node_data)
+            .show(ui.ctx(), |ui| {
+                if let Some(mesh) = mesh {
+                    egui::ScrollArea::auto_sized().show(ui, |ui| {
+                        mesh.draw_ui_node_data(ui);
+                    });
+                }
             });
 
         egui::Window::new("Vert Data")
@@ -1429,6 +1447,10 @@ impl<END, EVD, EED, EFD> Config<END, EVD, EED, EFD> {
 
     pub fn get_show_vert_data(&self) -> bool {
         self.show_vert_data
+    }
+
+    pub fn get_show_node_data(&self) -> bool {
+        self.show_node_data
     }
 
     pub fn get_show_edge_data_flags(&self) -> bool {

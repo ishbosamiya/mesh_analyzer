@@ -206,6 +206,12 @@ pub(crate) mod io_structs {
         }
     }
 
+    impl<T> Display for NodeData<T> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "extra_data: TODO velocity: {}", self.get_velocity())
+        }
+    }
+
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     pub struct Sizing {
         sizing_str: String,
@@ -889,6 +895,8 @@ pub trait AdaptiveMeshExtension<END> {
         face: &AdaptiveFace,
     ) -> Result<FaceSizingExtra, MeshExtensionError>;
 
+    fn draw_ui_node_data(&self, ui: &mut egui::Ui);
+
     fn draw_ui_vert_data(&self, ui: &mut egui::Ui);
 
     fn draw_ui_edge_flags(&self, ui: &mut egui::Ui);
@@ -1179,6 +1187,25 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
             lambda_tilda_max,
             m,
         ))
+    }
+
+    fn draw_ui_node_data(&self, ui: &mut egui::Ui) {
+        self.get_nodes()
+            .iter()
+            .enumerate()
+            .for_each(|(i, (_, node))| {
+                ui.horizontal(|ui| {
+                    ui.label(format!("{:05}", i));
+                    match &node.extra_data {
+                        Some(data) => {
+                            ui.label(format!("{}", data));
+                        }
+                        None => {
+                            ui.label("No Extra Data");
+                        }
+                    }
+                });
+            });
     }
 
     fn draw_ui_vert_data(&self, ui: &mut egui::Ui) {
