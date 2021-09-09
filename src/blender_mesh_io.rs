@@ -193,11 +193,16 @@ pub(crate) mod io_structs {
     pub struct NodeData<T> {
         node_data_str: String,
         extra_data: T,
+        velocity: Float3,
     }
 
     impl<T> NodeData<T> {
         pub fn get_extra_data(&self) -> &T {
             &self.extra_data
+        }
+
+        pub fn get_velocity(&self) -> &Float3 {
+            &self.velocity
         }
     }
 
