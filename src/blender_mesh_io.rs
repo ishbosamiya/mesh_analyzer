@@ -685,12 +685,17 @@ pub struct AdaptiveRemeshParams {
     edge_length_max: f64,
     aspect_ratio_min: f64,
     change_in_vertex_normal_max: f64,
+    #[serde(default = "default_change_in_vertex_velocity_max")]
     change_in_vertex_velocity_max: f64,
+}
+
+fn default_change_in_vertex_velocity_max() -> f64 {
+    0.3
 }
 
 impl Default for AdaptiveRemeshParams {
     fn default() -> Self {
-        Self::new(0.05, 0.5, 0.2, 0.3, 0.3)
+        Self::new(0.05, 0.5, 0.2, 0.3, default_change_in_vertex_velocity_max())
     }
 }
 
