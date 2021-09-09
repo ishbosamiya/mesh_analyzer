@@ -46,6 +46,12 @@ pub(crate) mod io_structs {
         z: f32,
     }
 
+    impl From<Float3> for glm::DVec3 {
+        fn from(float3: Float3) -> Self {
+            glm::vec3(float3.x.into(), float3.y.into(), float3.z.into())
+        }
+    }
+
     impl Display for Float3 {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(f, "({:.4}, {:.4}, {:.4})", self.x, self.y, self.z)
@@ -56,6 +62,12 @@ pub(crate) mod io_structs {
     pub struct Float2 {
         x: f32,
         y: f32,
+    }
+
+    impl From<Float2> for glm::DVec2 {
+        fn from(float2: Float2) -> Self {
+            glm::vec2(float2.x.into(), float2.y.into())
+        }
     }
 
     #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
@@ -201,8 +213,8 @@ pub(crate) mod io_structs {
             &self.extra_data
         }
 
-        pub fn get_velocity(&self) -> &Float3 {
-            &self.velocity
+        pub fn get_velocity(&self) -> Float3 {
+            self.velocity
         }
     }
 
@@ -423,18 +435,6 @@ pub(crate) mod io_structs {
         pub edge_pos_index_map: HashMap<EdgeIndex, usize>,
         pub faces_map_str: String,
         pub face_pos_index_map: HashMap<FaceIndex, usize>,
-    }
-
-    impl From<Float3> for glm::DVec3 {
-        fn from(float3: Float3) -> Self {
-            glm::vec3(float3.x.into(), float3.y.into(), float3.z.into())
-        }
-    }
-
-    impl From<Float2> for glm::DVec2 {
-        fn from(float2: Float2) -> Self {
-            glm::vec2(float2.x.into(), float2.y.into())
-        }
     }
 
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -685,11 +685,12 @@ pub struct AdaptiveRemeshParams {
     edge_length_max: f64,
     aspect_ratio_min: f64,
     change_in_vertex_normal_max: f64,
+    change_in_vertex_velocity_max: f64,
 }
 
 impl Default for AdaptiveRemeshParams {
     fn default() -> Self {
-        Self::new(0.05, 0.5, 0.2, 0.3)
+        Self::new(0.05, 0.5, 0.2, 0.3, 0.3)
     }
 }
 
@@ -699,12 +700,14 @@ impl AdaptiveRemeshParams {
         edge_length_max: f64,
         aspect_ratio_min: f64,
         change_in_vertex_normal_max: f64,
+        change_in_vertex_velocity_max: f64,
     ) -> Self {
         Self {
             edge_length_min,
             edge_length_max,
             aspect_ratio_min,
             change_in_vertex_normal_max,
+            change_in_vertex_velocity_max,
         }
     }
 
@@ -724,6 +727,10 @@ impl AdaptiveRemeshParams {
         self.change_in_vertex_normal_max
     }
 
+    pub fn get_change_in_vertex_velocity_max(&self) -> f64 {
+        self.change_in_vertex_velocity_max
+    }
+
     pub fn get_edge_length_min_mut(&mut self) -> &mut f64 {
         &mut self.edge_length_min
     }
@@ -738,6 +745,10 @@ impl AdaptiveRemeshParams {
 
     pub fn get_change_in_vertex_normal_max_mut(&mut self) -> &mut f64 {
         &mut self.change_in_vertex_normal_max
+    }
+
+    pub fn get_change_in_vertex_velocity_max_mut(&mut self) -> &mut f64 {
+        &mut self.change_in_vertex_velocity_max
     }
 }
 
@@ -761,6 +772,10 @@ impl DrawUI for AdaptiveRemeshParams {
             "Maximum Change in Vertex Normal: {}",
             self.get_change_in_vertex_normal_max()
         ));
+        ui.label(format!(
+            "Maximum Change in Vertex Velocity: {}",
+            self.get_change_in_vertex_velocity_max()
+        ));
     }
 
     fn draw_ui_edit(&mut self, _extra_data: &Self::ExtraData, ui: &mut egui::Ui) {
@@ -780,11 +795,16 @@ impl DrawUI for AdaptiveRemeshParams {
             egui::Slider::new(self.get_change_in_vertex_normal_max_mut(), 0.0..=1.0)
                 .text("Maximum Change in Vertex Normal"),
         );
+        ui.add(
+            egui::Slider::new(self.get_change_in_vertex_velocity_max_mut(), 0.0..=1.0)
+                .text("Maximum Change in Vertex Velocity"),
+        );
     }
 }
 
 pub struct FaceSizingExtra {
-    m_curv: glm::DMat2x2,
+    m_crv: glm::DMat2x2,
+    m_vel: glm::DMat2x2,
     m_hat: glm::DMat2x2,
     q: glm::DMat2x2,
     lambda_hat: glm::DVec2,
@@ -794,8 +814,10 @@ pub struct FaceSizingExtra {
 }
 
 impl FaceSizingExtra {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        m_curv: glm::DMat2x2,
+        m_crv: glm::DMat2x2,
+        m_vel: glm::DMat2x2,
         m_hat: glm::DMat2x2,
         q: glm::DMat2x2,
         lambda_hat: glm::DVec2,
@@ -804,7 +826,8 @@ impl FaceSizingExtra {
         m: glm::DMat2x2,
     ) -> Self {
         Self {
-            m_curv,
+            m_crv,
+            m_vel,
             m_hat,
             q,
             lambda_hat,
@@ -814,8 +837,12 @@ impl FaceSizingExtra {
         }
     }
 
-    pub fn get_m_curv(&self) -> glm::DMat2x2 {
-        self.m_curv
+    pub fn get_m_crv(&self) -> glm::DMat2x2 {
+        self.m_crv
+    }
+
+    pub fn get_m_vel(&self) -> glm::DMat2x2 {
+        self.m_vel
     }
 
     pub fn get_m_hat(&self) -> glm::DMat2x2 {
@@ -847,7 +874,8 @@ impl DrawUI for FaceSizingExtra {
     type ExtraData = ();
 
     fn draw_ui(&self, _extra_data: &Self::ExtraData, ui: &mut egui::Ui) {
-        ui.label(format!("m_curv: {}", self.m_curv));
+        ui.label(format!("m_crv: {}", self.m_crv));
+        ui.label(format!("m_vel: {}", self.m_vel));
         ui.label(format!("m_hat: {}", self.m_hat));
         ui.label(format!("q: {}", self.q));
         ui.label(format!("lambda_hat: {}", self.lambda_hat));
@@ -1137,15 +1165,28 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
             &n2.normal.unwrap(),
             &n3.normal.unwrap(),
         );
-
         let jacobian_normal_transpose = jacobian_normal.transpose();
 
+        let jacobian_velocity = calculate_derivative(
+            face,
+            &n1.extra_data.as_ref().unwrap().get_velocity().into(),
+            &n2.extra_data.as_ref().unwrap().get_velocity().into(),
+            &n3.extra_data.as_ref().unwrap().get_velocity().into(),
+        );
+        let jacobian_velocity_transpose = jacobian_velocity.transpose();
+
         let m_crv = jacobian_normal_transpose * jacobian_normal;
+        let m_vel = jacobian_velocity_transpose * jacobian_velocity;
 
         let m_hat = m_crv
             * (1.0
                 / (params.get_change_in_vertex_normal_max()
-                    * params.get_change_in_vertex_normal_max()));
+                    * params.get_change_in_vertex_normal_max()))
+            + m_vel
+                * (1.0
+                    / (params.get_change_in_vertex_velocity_max()
+                        * params.get_change_in_vertex_velocity_max()));
+
         let eigen_type = 1;
         let q;
         let lambda_hat;
@@ -1180,6 +1221,7 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
 
         Ok(FaceSizingExtra::new(
             m_crv,
+            m_vel,
             m_hat,
             q,
             lambda_hat,
