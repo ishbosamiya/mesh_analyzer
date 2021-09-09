@@ -315,6 +315,10 @@ fn main() {
                     egui::ScrollArea::auto_sized().show(ui, |ui| {
                         ui.label(format!("fps: {:.2}", fps.get_last_processed()));
                         if ui.button("Save Config").clicked() {
+                            let mut config_backup_file_path =
+                                std::path::PathBuf::from(config_file_path);
+                            config_backup_file_path.set_extension("config~");
+                            std::fs::rename(config_file_path, config_backup_file_path).unwrap();
                             let config_serialized = serde_json::to_string_pretty(&config).unwrap();
                             std::fs::write(config_file_path, config_serialized).unwrap();
                         }
