@@ -1019,13 +1019,14 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             egui::Slider::new(&mut self.aspect_ratio_min, 0.0..=1.0).text("Aspect Ratio Minimum"),
         );
 
-        let mut modify_adaptive_remesh_params = self.modify_adaptive_remesh_params;
+        // TODO clean up in rust 2021
+        // https://doc.rust-lang.org/edition-guide/rust-2021/disjoint-capture-in-closures.html
+        let adaptive_remesh_params = &mut self.adaptive_remesh_params;
         egui::Window::new("Adaptive Remesh Params")
-            .open(&mut modify_adaptive_remesh_params)
+            .open(&mut self.modify_adaptive_remesh_params)
             .show(ui.ctx(), |ui| {
-                self.adaptive_remesh_params.draw_ui_edit(&(), ui);
+                adaptive_remesh_params.draw_ui_edit(&(), ui);
             });
-        self.modify_adaptive_remesh_params = modify_adaptive_remesh_params;
 
         egui::ComboBox::from_label("Aspect Ratio Metric")
             .selected_text(format!("{}", self.aspect_ratio_metric))
