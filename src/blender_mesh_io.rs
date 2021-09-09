@@ -1269,14 +1269,18 @@ fn mat2x2_eigen_decomposition(mat: &glm::DMat2x2) -> (glm::DMat2x2, glm::DVec2) 
 
     let lambda = glm::vec2(l1, l2);
 
-    let q;
-    if c != 0.0 {
-        q = glm::mat2x2(l1 - d, l2 - d, c, c);
+    let q = if c != 0.0 {
+        glm::mat2x2(l1 - d, l2 - d, c, c)
     } else if b != 0.0 {
-        q = glm::mat2x2(b, b, l1 - a, l2 - a);
+        glm::mat2x2(b, b, l1 - a, l2 - a)
     } else {
-        q = glm::mat2x2(1.0, 0.0, 0.0, 1.0);
-    }
+        glm::mat2x2(1.0, 0.0, 0.0, 1.0)
+    };
+    let lambda = glm::vec2(
+        lambda[0] * q.column(0).norm(),
+        lambda[1] * q.column(1).norm(),
+    );
+    let q = glm::DMat2x2::from_columns(&[q.column(0).normalize(), q.column(1).normalize()]);
     (q, lambda)
 }
 
