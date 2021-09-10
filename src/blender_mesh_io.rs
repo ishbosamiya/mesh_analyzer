@@ -754,19 +754,43 @@ impl FaceSizingExtra {
     }
 }
 
+/// Custom glm::TMat to string function for nicer printing.
+fn glm_mat_to_string<T: glm::Scalar + Display, const R: usize, const C: usize>(
+    mat: &glm::TMat<T, R, C>,
+) -> String {
+    let mut res = String::from("\n\t|");
+    mat.row_iter().enumerate().for_each(|(row_i, row)| {
+        row.iter().for_each(|elem| {
+            res.push_str(&format!("{:.2} ", elem));
+        });
+        if row_i != (R - 1) {
+            res.push_str("|\n\t|");
+        } else {
+            res.push_str("|\n");
+        }
+    });
+    res
+}
+
 impl DrawUI for FaceSizingExtra {
     type ExtraData = ();
 
     fn draw_ui(&self, _extra_data: &Self::ExtraData, ui: &mut egui::Ui) {
-        ui.label(format!("m_crv: {}", self.m_crv));
-        ui.label(format!("m_vel: {}", self.m_vel));
-        ui.label(format!("m_cmp: {}", self.m_cmp));
-        ui.label(format!("m_hat: {}", self.m_hat));
-        ui.label(format!("q: {}", self.q));
-        ui.label(format!("lambda_hat: {}", self.lambda_hat));
-        ui.label(format!("lambda_tilda: {}", self.lambda_tilda));
-        ui.label(format!("lambda_tilda_max: {}", self.lambda_tilda_max));
-        ui.label(format!("m: {}", self.m));
+        ui.label(format!("m_crv: {}", glm_mat_to_string(&self.m_crv)));
+        ui.label(format!("m_vel: {}", glm_mat_to_string(&self.m_vel)));
+        ui.label(format!("m_cmp: {}", glm_mat_to_string(&self.m_cmp)));
+        ui.label(format!("m_hat: {}", glm_mat_to_string(&self.m_hat)));
+        ui.label(format!("q: {}", glm_mat_to_string(&self.q)));
+        ui.label(format!(
+            "lambda_hat: {}",
+            glm_mat_to_string(&self.lambda_hat)
+        ));
+        ui.label(format!(
+            "lambda_tilda: {}",
+            glm_mat_to_string(&self.lambda_tilda)
+        ));
+        ui.label(format!("lambda_tilda_max: {:.2}", self.lambda_tilda_max));
+        ui.label(format!("m: {}", glm_mat_to_string(&self.m)));
     }
 
     fn draw_ui_edit(&mut self, _extra_data: &Self::ExtraData, _ui: &mut egui::Ui) {
