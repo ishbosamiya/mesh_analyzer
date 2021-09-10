@@ -1031,6 +1031,8 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
             ));
         }
 
+        let eigen_decomp_type = EigenDecompType::GLM;
+
         let calculate_derivative =
             |face: &AdaptiveFace, f1: &glm::DVec3, f2: &glm::DVec3, f3: &glm::DVec3| {
                 let uv1 = self.get_vert(face.get_verts()[0]).unwrap().uv.unwrap();
@@ -1046,10 +1048,9 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
         let compression_metric = |jacobian_position: &glm::DMat3x2| {
             let jacobian_position_transpose = jacobian_position.transpose();
             let m_cmp_pre = jacobian_position_transpose * jacobian_position;
-            let mut eigen_decomp = m_cmp_pre.symmetric_eigen();
-            eigen_decomp.eigenvalues[0] = eigen_decomp.eigenvalues[0].max(0.0);
-            eigen_decomp.eigenvalues[1] = eigen_decomp.eigenvalues[1].max(0.0);
-            eigen_decomp.recompose()
+            let (q, lambda) = mat2x2_eigen_decomposition(&m_cmp_pre, eigen_decomp_type);
+            let lambda = glm::vec2(lambda[0].max(0.0), lambda[1].max(0.0));
+            q * glm::diagonal2x2(&lambda) * glm::inverse(&q)
         };
 
         let n1 = self
@@ -1112,18 +1113,7 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
                     / (params.get_material_compression_max()
                         * params.get_material_compression_max()));
 
-        let eigen_type = 1;
-        let q;
-        let lambda_hat;
-        if eigen_type == 0 {
-            let q_and_lambda_hat = m_hat.symmetric_eigen();
-            q = q_and_lambda_hat.eigenvectors;
-            lambda_hat = q_and_lambda_hat.eigenvalues;
-        } else {
-            let q_and_lambda_hat = mat2x2_eigen_decomposition(&m_hat);
-            q = q_and_lambda_hat.0;
-            lambda_hat = q_and_lambda_hat.1;
-        }
+        let (q, lambda_hat) = mat2x2_eigen_decomposition(&m_hat, eigen_decomp_type);
 
         let lambda_tilda = glm::clamp(
             &lambda_hat,
@@ -1254,8 +1244,27 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum EigenDecompType {
+    GLM,
+    Custom,
+}
+
+fn mat2x2_eigen_decomposition(
+    mat: &glm::DMat2x2,
+    decomp_type: EigenDecompType,
+) -> (glm::DMat2x2, glm::DVec2) {
+    match decomp_type {
+        EigenDecompType::GLM => {
+            let val = mat.symmetric_eigen();
+            (val.eigenvectors, val.eigenvalues)
+        }
+        EigenDecompType::Custom => mat2x2_eigen_decomposition_custom(mat),
+    }
+}
+
 #[allow(clippy::many_single_char_names)]
-fn mat2x2_eigen_decomposition(mat: &glm::DMat2x2) -> (glm::DMat2x2, glm::DVec2) {
+fn mat2x2_eigen_decomposition_custom(mat: &glm::DMat2x2) -> (glm::DMat2x2, glm::DVec2) {
     let a = mat.column(0)[0];
     let b = mat.column(1)[0];
     let c = mat.column(0)[1];
