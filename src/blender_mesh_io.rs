@@ -682,6 +682,7 @@ pub type ClothAdaptiveMesh = AdaptiveMesh<io_structs::ClothNodeData>;
 pub struct FaceSizingExtra {
     m_crv: glm::DMat2x2,
     m_vel: glm::DMat2x2,
+    m_cmp: glm::DMat2x2,
     m_hat: glm::DMat2x2,
     q: glm::DMat2x2,
     lambda_hat: glm::DVec2,
@@ -695,6 +696,7 @@ impl FaceSizingExtra {
     pub fn new(
         m_crv: glm::DMat2x2,
         m_vel: glm::DMat2x2,
+        m_cmp: glm::DMat2x2,
         m_hat: glm::DMat2x2,
         q: glm::DMat2x2,
         lambda_hat: glm::DVec2,
@@ -705,6 +707,7 @@ impl FaceSizingExtra {
         Self {
             m_crv,
             m_vel,
+            m_cmp,
             m_hat,
             q,
             lambda_hat,
@@ -720,6 +723,10 @@ impl FaceSizingExtra {
 
     pub fn get_m_vel(&self) -> glm::DMat2x2 {
         self.m_vel
+    }
+
+    pub fn get_m_cmp(&self) -> glm::DMat2x2 {
+        self.m_cmp
     }
 
     pub fn get_m_hat(&self) -> glm::DMat2x2 {
@@ -753,6 +760,7 @@ impl DrawUI for FaceSizingExtra {
     fn draw_ui(&self, _extra_data: &Self::ExtraData, ui: &mut egui::Ui) {
         ui.label(format!("m_crv: {}", self.m_crv));
         ui.label(format!("m_vel: {}", self.m_vel));
+        ui.label(format!("m_cmp: {}", self.m_cmp));
         ui.label(format!("m_hat: {}", self.m_hat));
         ui.label(format!("q: {}", self.q));
         ui.label(format!("lambda_hat: {}", self.lambda_hat));
@@ -1011,6 +1019,15 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
                 glm::DMat3x2::from_columns(&[f2 - f1, f3 - f1]) * d_uv_inv
             };
 
+        let compression_metric = |jacobian_position: &glm::DMat3x2| {
+            let jacobian_position_transpose = jacobian_position.transpose();
+            let m_cmp_pre = jacobian_position_transpose * jacobian_position;
+            let mut eigen_decomp = m_cmp_pre.symmetric_eigen();
+            eigen_decomp.eigenvalues[0] = eigen_decomp.eigenvalues[0].max(0.0);
+            eigen_decomp.eigenvalues[1] = eigen_decomp.eigenvalues[1].max(0.0);
+            eigen_decomp.recompose()
+        };
+
         let n1 = self
             .get_node(
                 self.get_vert(face.get_verts()[0])
@@ -1052,8 +1069,11 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
         );
         let jacobian_velocity_transpose = jacobian_velocity.transpose();
 
+        let jacobian_position = calculate_derivative(face, &n1.pos, &n2.pos, &n3.pos);
+
         let m_crv = jacobian_normal_transpose * jacobian_normal;
         let m_vel = jacobian_velocity_transpose * jacobian_velocity;
+        let m_cmp = compression_metric(&jacobian_position);
 
         let m_hat = m_crv
             * (1.0
@@ -1062,7 +1082,11 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
             + m_vel
                 * (1.0
                     / (params.get_change_in_vertex_velocity_max()
-                        * params.get_change_in_vertex_velocity_max()));
+                        * params.get_change_in_vertex_velocity_max()))
+            + m_cmp
+                * (1.0
+                    / (params.get_material_compression_max()
+                        * params.get_material_compression_max()));
 
         let eigen_type = 1;
         let q;
@@ -1099,6 +1123,7 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
         Ok(FaceSizingExtra::new(
             m_crv,
             m_vel,
+            m_cmp,
             m_hat,
             q,
             lambda_hat,

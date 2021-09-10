@@ -221,15 +221,28 @@ pub struct AdaptiveRemeshParams {
     change_in_vertex_normal_max: f64,
     #[serde(default = "default_change_in_vertex_velocity_max")]
     change_in_vertex_velocity_max: f64,
+    #[serde(default = "default_material_compression_max")]
+    material_compression_max: f64,
 }
 
 fn default_change_in_vertex_velocity_max() -> f64 {
     0.3
 }
 
+fn default_material_compression_max() -> f64 {
+    0.3
+}
+
 impl Default for AdaptiveRemeshParams {
     fn default() -> Self {
-        Self::new(0.05, 0.5, 0.2, 0.3, default_change_in_vertex_velocity_max())
+        Self::new(
+            0.05,
+            0.5,
+            0.2,
+            0.3,
+            default_change_in_vertex_velocity_max(),
+            default_material_compression_max(),
+        )
     }
 }
 
@@ -240,6 +253,7 @@ impl AdaptiveRemeshParams {
         aspect_ratio_min: f64,
         change_in_vertex_normal_max: f64,
         change_in_vertex_velocity_max: f64,
+        material_compression_max: f64,
     ) -> Self {
         Self {
             edge_length_min,
@@ -247,6 +261,7 @@ impl AdaptiveRemeshParams {
             aspect_ratio_min,
             change_in_vertex_normal_max,
             change_in_vertex_velocity_max,
+            material_compression_max,
         }
     }
 
@@ -270,6 +285,10 @@ impl AdaptiveRemeshParams {
         self.change_in_vertex_velocity_max
     }
 
+    pub fn get_material_compression_max(&self) -> f64 {
+        self.material_compression_max
+    }
+
     pub fn get_edge_length_min_mut(&mut self) -> &mut f64 {
         &mut self.edge_length_min
     }
@@ -288,6 +307,10 @@ impl AdaptiveRemeshParams {
 
     pub fn get_change_in_vertex_velocity_max_mut(&mut self) -> &mut f64 {
         &mut self.change_in_vertex_velocity_max
+    }
+
+    pub fn get_material_compression_max_mut(&mut self) -> &mut f64 {
+        &mut self.material_compression_max
     }
 }
 
@@ -315,6 +338,10 @@ impl DrawUI for AdaptiveRemeshParams {
             "Maximum Change in Vertex Velocity: {}",
             self.get_change_in_vertex_velocity_max()
         ));
+        ui.label(format!(
+            "Maximum Material Compression: {}",
+            self.get_material_compression_max()
+        ));
     }
 
     fn draw_ui_edit(&mut self, _extra_data: &Self::ExtraData, ui: &mut egui::Ui) {
@@ -337,6 +364,10 @@ impl DrawUI for AdaptiveRemeshParams {
         ui.add(
             egui::Slider::new(self.get_change_in_vertex_velocity_max_mut(), 0.0..=1.0)
                 .text("Maximum Change in Vertex Velocity"),
+        );
+        ui.add(
+            egui::Slider::new(self.get_material_compression_max_mut(), 0.0..=1.0)
+                .text("Maximum Material Compression"),
         );
     }
 }
