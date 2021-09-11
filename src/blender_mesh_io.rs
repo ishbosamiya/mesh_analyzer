@@ -1047,7 +1047,7 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
 
         let compression_metric = |jacobian_position: &glm::DMat3x2| {
             let jacobian_position_transpose = jacobian_position.transpose();
-            let m_cmp_pre = jacobian_position_transpose * jacobian_position;
+            let m_cmp_pre = glm::identity() - (jacobian_position_transpose * jacobian_position);
             let (q, lambda) = mat2x2_eigen_decomposition(&m_cmp_pre, eigen_decomp_type);
             let lambda = glm::vec2(lambda[0].max(0.0), lambda[1].max(0.0));
             q * glm::diagonal2x2(&lambda) * glm::inverse(&q)
