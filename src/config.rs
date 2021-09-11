@@ -479,7 +479,7 @@ pub struct Config<END, EVD, EED, EFD> {
     #[serde(default = "default_modify_adaptive_remesh_params")]
     modify_adaptive_remesh_params: bool,
 
-    #[serde(skip)]
+    #[serde(default)]
     element: Element,
     #[serde(skip)]
     element_index: usize,
