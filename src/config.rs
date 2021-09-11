@@ -213,6 +213,35 @@ impl LoadedMesh {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EigenDecompType {
+    GLM,
+    Custom,
+}
+
+impl Default for EigenDecompType {
+    fn default() -> Self {
+        EigenDecompType::GLM
+    }
+}
+
+impl Display for EigenDecompType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EigenDecompType::GLM => write!(f, "GLM"),
+            EigenDecompType::Custom => write!(f, "Custom"),
+        }
+    }
+}
+
+impl EigenDecompType {
+    pub fn all() -> impl Iterator<Item = Self> {
+        [EigenDecompType::GLM, EigenDecompType::Custom]
+            .iter()
+            .copied()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdaptiveRemeshParams {
     edge_length_min: f64,
@@ -223,6 +252,8 @@ pub struct AdaptiveRemeshParams {
     change_in_vertex_velocity_max: f64,
     #[serde(default = "default_material_compression_max")]
     material_compression_max: f64,
+    #[serde(default)]
+    eigen_decomp_type: EigenDecompType,
 }
 
 fn default_change_in_vertex_velocity_max() -> f64 {
@@ -242,6 +273,7 @@ impl Default for AdaptiveRemeshParams {
             0.3,
             default_change_in_vertex_velocity_max(),
             default_material_compression_max(),
+            EigenDecompType::default(),
         )
     }
 }
@@ -254,6 +286,7 @@ impl AdaptiveRemeshParams {
         change_in_vertex_normal_max: f64,
         change_in_vertex_velocity_max: f64,
         material_compression_max: f64,
+        eigen_decomp_type: EigenDecompType,
     ) -> Self {
         Self {
             edge_length_min,
@@ -262,6 +295,7 @@ impl AdaptiveRemeshParams {
             change_in_vertex_normal_max,
             change_in_vertex_velocity_max,
             material_compression_max,
+            eigen_decomp_type,
         }
     }
 
@@ -289,6 +323,10 @@ impl AdaptiveRemeshParams {
         self.material_compression_max
     }
 
+    pub fn get_eigen_decomp_type(&self) -> EigenDecompType {
+        self.eigen_decomp_type
+    }
+
     pub fn get_edge_length_min_mut(&mut self) -> &mut f64 {
         &mut self.edge_length_min
     }
@@ -311,6 +349,10 @@ impl AdaptiveRemeshParams {
 
     pub fn get_material_compression_max_mut(&mut self) -> &mut f64 {
         &mut self.material_compression_max
+    }
+
+    pub fn get_eigen_decomp_type_mut(&mut self) -> &mut EigenDecompType {
+        &mut self.eigen_decomp_type
     }
 }
 
@@ -342,6 +384,10 @@ impl DrawUI for AdaptiveRemeshParams {
             "Maximum Material Compression: {}",
             self.get_material_compression_max()
         ));
+        ui.label(format!(
+            "Eigen Decomp Type: {}",
+            self.get_eigen_decomp_type()
+        ));
     }
 
     fn draw_ui_edit(&mut self, _extra_data: &Self::ExtraData, ui: &mut egui::Ui) {
@@ -369,6 +415,17 @@ impl DrawUI for AdaptiveRemeshParams {
             egui::Slider::new(self.get_material_compression_max_mut(), 0.0..=1.0)
                 .text("Maximum Material Compression"),
         );
+        egui::ComboBox::from_label("Eigen Decomp Type")
+            .selected_text(format!("{}", self.eigen_decomp_type))
+            .show_ui(ui, |ui| {
+                EigenDecompType::all().for_each(|element| {
+                    ui.selectable_value(
+                        &mut self.eigen_decomp_type,
+                        element,
+                        format!("{}", element),
+                    );
+                });
+            });
     }
 }
 

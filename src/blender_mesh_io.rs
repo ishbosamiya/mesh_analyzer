@@ -19,7 +19,7 @@ use quick_renderer::gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, 
 use quick_renderer::{glm, mesh, shader};
 
 use crate::blender_mesh_io::io_structs::{ClothVertexFlag, EdgeDataFlags};
-use crate::config::{AdaptiveRemeshParams, ClothVertexElements};
+use crate::config::{AdaptiveRemeshParams, ClothVertexElements, EigenDecompType};
 use crate::curve::{PointNormalTriangle, PointNormalTriangleDrawData};
 use crate::prelude::DrawUI;
 use crate::{config, util};
@@ -1031,7 +1031,7 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
             ));
         }
 
-        let eigen_decomp_type = EigenDecompType::GLM;
+        let eigen_decomp_type = params.get_eigen_decomp_type();
 
         let calculate_derivative =
             |face: &AdaptiveFace, f1: &glm::DVec3, f2: &glm::DVec3, f3: &glm::DVec3| {
@@ -1242,12 +1242,6 @@ impl<END> AdaptiveMeshExtension<END> for AdaptiveMesh<END> {
                 });
             });
     }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum EigenDecompType {
-    GLM,
-    Custom,
 }
 
 fn mat2x2_eigen_decomposition(
