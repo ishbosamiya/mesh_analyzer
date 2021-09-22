@@ -1,8 +1,7 @@
 use quick_renderer::egui::{self, Ui};
-use quick_renderer::mesh::builtins::get_ico_sphere_subd_00;
 use quick_renderer::mesh::{
     apply_model_matrix_to_normal, apply_model_matrix_vec2, apply_model_matrix_vec3, FaceIndex,
-    MeshDrawData, NodeIndex, VertIndex,
+    NodeIndex, VertIndex,
 };
 use quick_renderer::shader::builtins::get_smooth_color_3d_shader;
 use rmps::Deserializer;
@@ -16,7 +15,7 @@ use std::path::Path;
 
 use quick_renderer::drawable::Drawable;
 use quick_renderer::gpu_immediate::{GPUImmediate, GPUPrimType, GPUVertCompType, GPUVertFetchMode};
-use quick_renderer::{glm, mesh, shader};
+use quick_renderer::{glm, gpu_utils, mesh, shader};
 
 use crate::blender_mesh_io::io_structs::{ClothVertexFlag, EdgeDataFlags};
 use crate::config::{AdaptiveRemeshParams, ClothVertexElements, EigenDecompType};
@@ -1514,7 +1513,7 @@ impl ClothAdaptiveMeshExtension for ClothAdaptiveMesh {
                     points.iter().for_each(|pos| {
                         let pos = apply_model_matrix_vec3(pos, axis_conversion_matrix);
                         let pos = apply_model_matrix_vec3(&pos, mesh_3d_model_matrix);
-                        draw_sphere_at(&pos, color, imm);
+                        gpu_utils::draw_sphere_at(&pos, 0.02, color, imm);
                     });
                 }
                 DrawStyle::Line => {
@@ -2891,28 +2890,6 @@ impl<END, EVD, EED, EFD> MeshExtensionPrivate<END, EVD, EED, EFD>
     }
 }
 
-fn draw_sphere_at(pos: &glm::DVec3, color: glm::Vec4, imm: &mut GPUImmediate) {
-    let smooth_color_3d_shader = get_smooth_color_3d_shader().as_ref().unwrap();
-    smooth_color_3d_shader.use_shader();
-    smooth_color_3d_shader.set_mat4(
-        "model\0",
-        &glm::convert(glm::scale(
-            &glm::translate(&glm::identity(), pos),
-            &glm::vec3(0.02, 0.02, 0.02),
-        )),
-    );
-
-    let ico_sphere = get_ico_sphere_subd_00();
-
-    ico_sphere
-        .draw(&mut MeshDrawData::new(
-            imm,
-            mesh::MeshUseShader::SmoothColor3D,
-            Some(color),
-        ))
-        .unwrap();
-}
-
 fn draw_lines(positions: &[glm::DVec3], color: glm::Vec4, imm: &mut GPUImmediate) {
     assert_ne!(positions.len(), 0);
     assert!(positions.len() % 2 == 0);
@@ -3022,7 +2999,7 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
         imm: &mut GPUImmediate,
     ) {
         let node_pos_applied = apply_model_matrix_vec3(&node.pos, mesh_model_matrix);
-        draw_sphere_at(&node_pos_applied, node_color, imm);
+        gpu_utils::draw_sphere_at(&node_pos_applied, 0.02, node_color, imm);
     }
 
     fn draw_fancy_vert(
@@ -3035,7 +3012,7 @@ impl<END, EVD, EED, EFD> MeshDrawFancy<END, EVD, EED, EFD> for mesh::Mesh<END, E
         let uv = vert.uv.as_ref().unwrap();
         let uv_pos = apply_model_matrix_vec2(uv, uv_plane_3d_model_matrix);
 
-        draw_sphere_at(&uv_pos, vert_color, imm);
+        gpu_utils::draw_sphere_at(&uv_pos, 0.02, vert_color, imm);
     }
 
     fn draw_fancy_node_vert_connect(
