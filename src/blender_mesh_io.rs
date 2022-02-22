@@ -1548,7 +1548,7 @@ impl DrawUI for ClothAdaptiveMesh {
         let config = &extra_data;
         if config.get_draw_cloth_vertex_data() {
             egui::Window::new("Cloth Vertex Data").show(ui.ctx(), |ui| {
-                egui::ScrollArea::auto_sized().show(ui, |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
                     self.get_nodes()
                         .iter()
                         .enumerate()

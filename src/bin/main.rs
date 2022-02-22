@@ -248,7 +248,7 @@ fn main() {
             egui::SidePanel::left("Left Side Panel")
                 .resizable(true)
                 .show(egui.get_egui_ctx(), |ui| {
-                    egui::ScrollArea::auto_sized().show(ui, |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
                         ui.label(format!("fps: {:.2}", fps.get_last_processed()));
                         if ui.button("Save Config").clicked() {
                             let mut config_backup_file_path =

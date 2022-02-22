@@ -1093,7 +1093,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                 );
                     ui.label("Metric 3: Different metric");
                 });
-                egui::ScrollArea::auto_sized().show(ui, |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
                     if let Some(mesh) = mesh {
                         for (_, face) in mesh.get_faces() {
                             let aspect_ratio = mesh.compute_aspect_ratio_uv(face);
@@ -1111,7 +1111,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             .open(&mut self.show_node_data)
             .show(ui.ctx(), |ui| {
                 if let Some(mesh) = mesh {
-                    egui::ScrollArea::auto_sized().show(ui, |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
                         mesh.draw_ui_node_data(ui);
                     });
                 }
@@ -1121,7 +1121,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             .open(&mut self.show_vert_data)
             .show(ui.ctx(), |ui| {
                 if let Some(mesh) = mesh {
-                    egui::ScrollArea::auto_sized().show(ui, |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
                         mesh.draw_ui_vert_data(ui);
                     });
                 }
@@ -1131,7 +1131,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             .open(&mut self.show_edge_data_flags)
             .show(ui.ctx(), |ui| {
                 if let Some(mesh) = mesh {
-                    egui::ScrollArea::auto_sized().show(ui, |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
                         mesh.draw_ui_edge_flags(ui);
                     });
                 }
@@ -1141,7 +1141,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
             .open(&mut self.show_edge_data)
             .show(ui.ctx(), |ui| {
                 if let Some(mesh) = mesh {
-                    egui::ScrollArea::auto_sized().show(ui, |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
                         mesh.draw_ui_edge_data(ui);
                     });
                 }
@@ -1154,7 +1154,7 @@ impl<END, EVD, EED, EFD> DrawUI for Config<END, EVD, EED, EFD> {
                 self.adaptive_remesh_params.draw_ui(&(), ui);
                 ui.separator();
                 if let Some(mesh) = mesh {
-                    egui::ScrollArea::auto_sized().show(ui, |ui| match self.get_element() {
+                    egui::ScrollArea::vertical().show(ui, |ui| match self.get_element() {
                         Element::Face => {
                             let face = mesh.get_faces().get_unknown_gen(self.get_element_index());
                             match face {
